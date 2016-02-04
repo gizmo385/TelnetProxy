@@ -14,8 +14,7 @@ int main(int argc, char* argv[]){
 		exit(1);
 	}
 
-	struct sockaddr_un my_addr;
-	struct sockaddr_un peer_addr;
+	struct sockaddr_in *my_addr = calloc(1, sizeof(sockaddr_in));
 
 		// 1. Create a socket with the socket() system call
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -25,8 +24,8 @@ int main(int argc, char* argv[]){
 	}
 	
 		// 2. Bind the socket to an address using bind() system call.
-	int port = atoi(argv[1]);
-	int bindfd = bind(sockfd, );
+	//int port = atoi(argv[1]);
+	int bindfd = bind(sockfd, my_addr, sizeof(sockaddr_in));
 	if(bindfd == -1){
 		fprintf(stderr, "Error: Binding failed\n");
 		exit(1);
