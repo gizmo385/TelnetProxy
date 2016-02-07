@@ -74,7 +74,7 @@ int main(int argc, char* argv[]){
 		    bzero((char *)&buf, sizeof(buf));
 		    len = read(connection, &payload_size, sizeof(int));
 
-		    if(len == -1) {
+		    if(len <= 0) {
 			close(connection);
 			break;
 		    }
@@ -83,12 +83,12 @@ int main(int argc, char* argv[]){
 
 		    len = read(connection, &buf, payload_size);
 
-		    if(len == -1) {
+		    if(len <= 0) {
 			close(connection);
 			break;
 		    }
 		    printf("%d\n", len); 
-		    printf("%s\n", buf);
+		    printf("%s", buf);
 		}
 	}
 	close(sockfd);
