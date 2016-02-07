@@ -1,6 +1,18 @@
 //Helen's Server machine is vm60
 //Helen's Socket machine is vm61
 
+/*
+CSC 425 Assignment 1 -- Create a simple client and server application
+	that can send messages. Server prints out the length of the message
+	and the message recieved.
+
+Authors: Chris Chapline and Helen Jones
+
+Due Date: Wednesday, February 10
+
+Server.c -- creates an open server that waits for connections
+*/
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <sys/types.h>
