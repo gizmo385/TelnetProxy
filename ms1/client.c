@@ -6,6 +6,7 @@
 #include <unistd.h>	//for closing the connection
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 
 #define MAX_LINE 1024
 
@@ -34,6 +35,7 @@ int main(int argc, char*argv[]){
 	}
 
 	/* Create client_addr data structure and copy over address*/
+	memset(&client_addr, 0, sizeof(client_addr));
 	bzero((char *)&client_addr, sizeof(client_addr));
 	client_addr.sin_family = AF_INET;
 	bcopy(hp->h_addr, (char *)&client_addr.sin_addr, hp->h_length);
@@ -54,8 +56,8 @@ int main(int argc, char*argv[]){
 		exit(1);
 	}
 
-	//buf = (char *)calloc(1, sizeof(buf));
-	bzero(buf, sizeof(buf));
+	buf = malloc(MAX_LINE);
+	memset(&buf, 0, sizeof(buf));
 	uint32_t size;
 	/* send information */
 	while((size = getline(&buf, &MAX_LINE_SIZE_T, stdin))){
