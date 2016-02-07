@@ -2,6 +2,7 @@
 //Helen's Socket machine is vm61
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -22,7 +23,7 @@ int main(int argc, char* argv[]){
 
 	struct sockaddr_in my_addr;
 	char buf[MAX_LINE];
-	socklen_t len;			//length of the read for the recieve call 
+	socklen_t len;			//length of the read for the recieve call
 
 	bzero((char *)&my_addr, sizeof(my_addr));
 
@@ -32,7 +33,7 @@ int main(int argc, char* argv[]){
 		fprintf(stderr, "Error: Socket creation failed\n");
 		exit(1);
 	}
-	
+
 		//Bind the socket to an address using bind() system call
 	//assign the address family of the server
 	my_addr.sin_family = AF_INET;
@@ -43,13 +44,13 @@ int main(int argc, char* argv[]){
 
 	//assign the server's ip
 	my_addr.sin_addr.s_addr = INADDR_ANY;
-	
+
 	int bindfd = bind(sockfd, (struct sockaddr *)&my_addr, sizeof(my_addr));
 	if(bindfd == -1){
 		fprintf(stderr, "Error: Binding failed\n");
 		exit(1);
 	}
-	
+
 		//Listen for connections with listen()
 	int listenrt = listen(sockfd, MAX_PENDING);
 	if(listenrt == -1){
@@ -58,29 +59,37 @@ int main(int argc, char* argv[]){
 	}
 
 	while(1){
-		bzero((char *)&buf, sizeof(buf));
-		//do stuff with the client 
-		printf("Before the connection\n");
+		// Accept client connection
+		/*printf("Before the connection\n");*/
 		int connection = accept(sockfd, (struct sockaddr *)&my_addr, &len);
 		if(connection < 0){
 			fprintf(stderr, "Error: connection accept failed\n");
 			exit(1);
 		}
-		printf("made the connection\n");
-		while((len = recv(connection, buf, sizeof(buf), 0))){
-	
-			//1st arg (size)
-			int payload = ntohl(buf);
-			printf("%d\n", payload);
-	
-			//2nd arg (string)
-			len = recv(connection, buf, payload, 0);
-			printf("%s\n", buf);
-		}
 
-		// close the client
-		close(connection);
+        int len = 0;
+        int payload_size = 0;
 
+        while(true) {
+		    bzero((char *)&buf, sizeof(buf));
+            len = read(connection, &payload_size, sizeof(int));
+
+            if(len == -1) {
+                close(connection);
+                break;
+            }
+
+            payload_size = ntohl(payload_size);
+
+            len = read(connection, &buf, payload_size);
+
+            if(len == -1) {
+                close(connection);
+                break;
+            }
+
+            printf("%s", buf);
+        }
 	}
 	return 0;
 }
