@@ -23,18 +23,10 @@ int main(int argc, char* argv[]){
 
 	struct sockaddr_in my_addr;
 	char buf[MAX_LINE];
-	socklen_t len;			//length of the read for the recieve call
+	int len;			//length of the read for the recieve call
 
 	bzero((char *)&my_addr, sizeof(my_addr));
 
-		// Create a socket with the socket() system call
-	int sockfd = socket(PF_INET, SOCK_STREAM, 0);
-	if(sockfd == -1){
-		fprintf(stderr, "Error: Socket creation failed\n");
-		exit(1);
-	}
-
-		//Bind the socket to an address using bind() system call
 	//assign the address family of the server
 	my_addr.sin_family = AF_INET;
 
@@ -44,14 +36,22 @@ int main(int argc, char* argv[]){
 
 	//assign the server's ip
 	my_addr.sin_addr.s_addr = INADDR_ANY;
+		
+	// Create a socket with the socket() system call
+	int sockfd = socket(PF_INET, SOCK_STREAM, 0);
+	if(sockfd == -1){
+		fprintf(stderr, "Error: Socket creation failed\n");
+		exit(1);
+	}
 
+	//Bind the socket to an address using bind() system call
 	int bindfd = bind(sockfd, (struct sockaddr *)&my_addr, sizeof(my_addr));
 	if(bindfd == -1){
 		fprintf(stderr, "Error: Binding failed\n");
 		exit(1);
 	}
 
-		//Listen for connections with listen()
+	//Listen for connections with listen()
 	int listenrt = listen(sockfd, MAX_PENDING);
 	if(listenrt == -1){
 		fprintf(stderr, "Error: Listen call failed\n");
@@ -67,29 +67,30 @@ int main(int argc, char* argv[]){
 			exit(1);
 		}
 
-        int len = 0;
-        int payload_size = 0;
+		int len = 0;
+		int payload_size = 0;
 
-        while(true) {
+		while(true) {
 		    bzero((char *)&buf, sizeof(buf));
-            len = read(connection, &payload_size, sizeof(int));
+		    len = read(connection, &payload_size, sizeof(int));
 
-            if(len == -1) {
-                close(connection);
-                break;
-            }
+		    if(len == -1) {
+			close(connection);
+			break;
+		    }
 
-            payload_size = ntohl(payload_size);
+		    payload_size = ntohl(payload_size);
 
-            len = read(connection, &buf, payload_size);
+		    len = read(connection, &buf, payload_size);
 
-            if(len == -1) {
-                close(connection);
-                break;
-            }
-
-            printf("%s", buf);
-        }
+		    if(len == -1) {
+			close(connection);
+			break;
+		    }
+		    printf("%d\n", len); 
+		    printf("%s\n", buf);
+		}
 	}
+	close(sockfd);
 	return 0;
 }

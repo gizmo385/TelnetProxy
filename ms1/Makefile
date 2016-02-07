@@ -8,8 +8,9 @@ server: server.c
 client: client.c
 	gcc $(CFLAGS) client client.c
 
-all: $(CFILES)
-	gcc $(CFLAGS) $(FILES) $(CFILES) 
+all: 
+	make server
+	make client
 
 clean:
 	$(RM) client server
