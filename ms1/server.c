@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <unistd.h>	//for closing the connection
 #include <stdlib.h>
 #include <strings.h>
 
@@ -21,7 +22,7 @@ int main(int argc, char* argv[]){
 
 	struct sockaddr_in my_addr;
 	char buf[MAX_LINE];
-	int len;			//length of 
+	socklen_t len;			//length of the read for the recieve call 
 
 	bzero((char *)&my_addr, sizeof(my_addr));
 
@@ -57,14 +58,23 @@ int main(int argc, char* argv[]){
 	}
 
 	while(1){
+		bzero((char *)&buf, sizeof(buf));
 		//do stuff with the client 
+		printf("Before the connection\n");
 		int connection = accept(sockfd, (struct sockaddr *)&my_addr, &len);
-		len = recv(connection, buf, sizeof(buf), 0);
-		while(len){
+		if(connection < 0){
+			fprintf(stderr, "Error: connection accept failed\n");
+			exit(1);
+		}
+		printf("made the connection\n");
+		while((len = recv(connection, buf, sizeof(buf), 0))){
+	
 			//1st arg (size)
-			len = recv(connection, buf, sizeof(buf), 0);
-			// payload arg	
-			len = recv(connection, buf, sizeof(buf), 0);
+			int payload = ntohl(buf);
+			printf("%d\n", payload);
+	
+			//2nd arg (string)
+			len = recv(connection, buf, payload, 0);
 			printf("%s\n", buf);
 		}
 
@@ -72,10 +82,5 @@ int main(int argc, char* argv[]){
 		close(connection);
 
 	}
-/*
-	4. Accept a connection with accept() -- blocks until a client connects with the server
-	5. Send and recieve data 
-*/
-
 	return 0;
 }
