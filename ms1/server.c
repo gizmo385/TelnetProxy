@@ -53,6 +53,7 @@ int main(int argc, char* argv[]){
 	int sockfd = socket(PF_INET, SOCK_STREAM, 0);
 	if(sockfd == -1){
 		fprintf(stderr, "Error: Socket creation failed\n");
+		close(sockfd);
 		exit(1);
 	}
 
@@ -60,6 +61,7 @@ int main(int argc, char* argv[]){
 	int bindfd = bind(sockfd, (struct sockaddr *)&my_addr, sizeof(my_addr));
 	if(bindfd == -1){
 		fprintf(stderr, "Error: Binding failed\n");
+		close(sockfd);
 		exit(1);
 	}
 
@@ -67,6 +69,7 @@ int main(int argc, char* argv[]){
 	int listenrt = listen(sockfd, MAX_PENDING);
 	if(listenrt == -1){
 		fprintf(stderr, "Error: Listen call failed\n");
+		close(sockfd);
 		exit(1);
 	}
 
@@ -76,6 +79,7 @@ int main(int argc, char* argv[]){
 		int connection = accept(sockfd, (struct sockaddr *)&my_addr, &len);
 		if(connection < 0){
 			fprintf(stderr, "Error: connection accept failed\n");
+			close(sockfd);
 			exit(1);
 		}
 
