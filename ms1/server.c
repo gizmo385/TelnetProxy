@@ -96,6 +96,9 @@ int main(int argc, char* argv[]){
 		    }
 
 		    payload_size = ntohl(payload_size);
+			if(payload_size > MAX_LINE){
+				payload_size = MAX_LINE;
+			}
 
 		    len = read(connection, &buf, payload_size);
 
@@ -103,7 +106,7 @@ int main(int argc, char* argv[]){
 			close(connection);
 			break;
 		    }
-		    printf("%d\n", len); 
+		    printf("%d\n", payload_size); 
 		    printf("%s", buf);
 		}
 	}
