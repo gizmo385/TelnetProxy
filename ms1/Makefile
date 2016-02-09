@@ -1,6 +1,6 @@
 CFILES = server.c client.c
 FILES = server client
-CFLAGS = -g -Wall -o
+CFLAGS = -g -o
 
 server: server.c
 	gcc $(CFLAGS) server server.c
