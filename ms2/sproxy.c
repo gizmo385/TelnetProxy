@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     // Connnect to telnet
     int telnet_sock = socket(PF_INET, SOCK_STREAM, 0);
     int telnet_conn = -1;
-    connect_to_telnet(&telnet_sock, &telnet_conn);
+    connect_to_telnet(telnet_sock, &telnet_conn);
 
     // Setup the socket to listen for cproxy
     int listen_sock = socket(PF_INET, SOCK_STREAM, 0);
