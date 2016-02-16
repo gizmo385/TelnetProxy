@@ -24,7 +24,7 @@ Server.c -- creates an open server that waits for connections
 #define TELNET_PORT 23
 #define MAX_PENDING 5
 
-void connect_to_telnet(int sockfd, int *connection) {
+void connect_to_telnet(int socket, int *connection) {
     /* Connect to the telnet daemon on localhost:23 */
     struct hostent *hp = gethostbyname("localhost");
 
@@ -41,16 +41,8 @@ void connect_to_telnet(int sockfd, int *connection) {
     bcopy(hp->h_addr, (char *)&telnet_client_addr.sin_addr, hp->h_length);
     telnet_client_addr.sin_port = htons(TELNET_PORT);
 
-    // Create the socket
-    /**sockfd = socket(PF_INET, SOCK_STREAM, 0);*/
-    /*printf("Socket for telnet connection is: %d\n", *sockfd);*/
-    /*if(*sockfd == -1){*/
-        /*fprintf(stderr, "ERROR: Creating telnet socket failed\n");*/
-        /*exit(errno);*/
-    /*}*/
-
     // Open connection to telnet
-    *connection = connect(sockfd, (struct sockaddr *)&telnet_client_addr, sizeof(telnet_client_addr));
+    *connection = connect(socket, (struct sockaddr *)&telnet_client_addr, sizeof(telnet_client_addr));
 
     if(*connection == -1){
         fprintf(stderr, "ERROR: Connecting to telnet failed!\n");
@@ -59,16 +51,16 @@ void connect_to_telnet(int sockfd, int *connection) {
     }
 }
 
-void setup_cproxy_connection(struct sockaddr_in *server_addr, int sockfd, int listen_port) {
+void setup_cproxy_connection(struct sockaddr_in *server_addr, int socket, int listen_port) {
     // Setup the sockaddr for the listen socket
     server_addr->sin_family = AF_INET; //assign the address family of the server
     server_addr->sin_addr.s_addr = INADDR_ANY; //assign the server's ip
 
     //Bind the socket to an address using bind() system call
-    int bindfd = bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    int bindfd = bind(socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if(bindfd == -1){
-        fprintf(stderr, "Error: Binding failed\n");
-        close(sockfd);
+        fprintf(stderr, "Error: Binding cproxy listen socket failed\n");
+        close(socket);
         exit(errno);
     }
 }
