@@ -9,6 +9,7 @@ Server.c -- creates an open server that waits for connections
 */
 
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -58,25 +59,16 @@ void connect_to_telnet(int sockfd, int *connection) {
     }
 }
 
-void setup_cproxy_connection(int *sockfd, struct sockaddr_in *server_addr, int listen_port) {
+void setup_cproxy_connection(struct sockaddr_in *server_addr, int sockfd, int listen_port) {
     // Setup the sockaddr for the listen socket
-    bzero((char *)&server_addr, sizeof(server_addr));
     server_addr->sin_family = AF_INET; //assign the address family of the server
     server_addr->sin_addr.s_addr = INADDR_ANY; //assign the server's ip
 
-    // Create a socket with the socket() system call
-    *sockfd = socket(PF_INET, SOCK_STREAM, 0);
-    if(*sockfd == -1){
-        fprintf(stderr, "Error: Socket creation failed\n");
-        close(*sockfd);
-        exit(errno);
-    }
-
     //Bind the socket to an address using bind() system call
-    int bindfd = bind(*sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    int bindfd = bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if(bindfd == -1){
         fprintf(stderr, "Error: Binding failed\n");
-        close(*sockfd);
+        close(sockfd);
         exit(errno);
     }
 }
@@ -91,14 +83,23 @@ int main(int argc, char *argv[]) {
 
     // Connnect to telnet
     int telnet_sock = socket(PF_INET, SOCK_STREAM, 0);
+    if(telnet_sock == -1) {
+        fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
+        exit(errno);
+    }
+
     int telnet_conn = -1;
     connect_to_telnet(telnet_sock, &telnet_conn);
 
     // Setup the socket to listen for cproxy
     int listen_sock = socket(PF_INET, SOCK_STREAM, 0);
+    if(listen_sock == -1) {
+        fprintf(stderr, "ERROR: Could not create socket for cproxy!\n");
+        exit(errno);
+    }
+
     struct sockaddr_in server_addr;
-    bzero((char *)&server_addr, sizeof(server_addr));
-    setup_cproxy_connection(&listen_sock, &server_addr, listen_port);
+    setup_cproxy_connection(&server_addr, listen_sock, listen_port);
 
     //Listen for connections with listen()
     int listen_rt = listen(listen_sock, MAX_PENDING);
