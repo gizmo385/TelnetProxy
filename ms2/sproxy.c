@@ -5,7 +5,7 @@ Authors: Chris Chapline and Helen Jones
 
 Due Date: Wednesday, February 24th
 
-Server.c -- creates an open server that waits for connections
+sproxy.c -- Connects to the telnet daemon and listens for the cproxy connection
 */
 
 #include <stdio.h>
@@ -22,6 +22,7 @@ Server.c -- creates an open server that waits for connections
 #include <errno.h>
 
 #define TELNET_PORT 23
+#define BUFFER_SIZE 1024
 #define MAX_PENDING 5
 
 void connect_to_telnet(int socket, int *connection) {
@@ -79,6 +80,7 @@ int main(int argc, char *argv[]) {
     // Setup the sockaddr for the listen socket
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET; //assign the address family of the server
+    server_addr.sin_port = htons(listen_port); // assign server's listen
     server_addr.sin_addr.s_addr = INADDR_ANY; //assign the server's ip
 
     //Bind the socket to an address using bind() system call
@@ -100,10 +102,13 @@ int main(int argc, char *argv[]) {
     // Accept client connection
     socklen_t len;
     int client_connection = accept(listen_sock, (struct sockaddr *)&server_addr, &len);
+
     if(client_connection < 0){
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
         exit(errno);
+    } else {
+        printf("Accepted connection :D\n");
     }
 
     // Set up our descriptor set for select
@@ -118,6 +123,12 @@ int main(int argc, char *argv[]) {
     tv.tv_sec = 10;
     tv.tv_usec = 500000;
     int rv;
+
+    // Create the buffer
+    char buf[BUFFER_SIZE];
+
+    // Length of the payload recieved
+    int payload_length = -1;
 
     // Actually forward the data
     while(true) {
@@ -135,11 +146,31 @@ int main(int argc, char *argv[]) {
         } else {
             // Determine which socket (or both) has data waiting
             if(FD_ISSET(telnet_sock, &socket_fds)) {
-                // recv from telnet_sock, write to listen_sock
+                // Recieve from telnet daemon
+                payload_length = read(telnet_sock, &buf, BUFFER_SIZE);
+
+                if(payload_length <= 0) {
+                    close(listen_sock);
+                    close(telnet_sock);
+                    break;
+                }
+
+                // Write to the client
+                send(listen_sock, (void *) buf, payload_length, 0);
             }
 
             if(FD_ISSET(listen_sock, &socket_fds)) {
-                // recv from listen_sock, write to telnet_sock
+                // Recieve from the client
+                payload_length = read(listen_sock, &buf, BUFFER_SIZE);
+
+                if(payload_length <= 0) {
+                    close(listen_sock);
+                    close(telnet_sock);
+                    break;
+                }
+
+                // Write to the telnet connection
+                send(telnet_sock, (void *) buf, payload_length, 0);
             }
         }
     }
