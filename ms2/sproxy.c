@@ -51,20 +51,6 @@ void connect_to_telnet(int socket, int *connection) {
     }
 }
 
-void setup_cproxy_connection(struct sockaddr_in *server_addr, int socket, int listen_port) {
-    // Setup the sockaddr for the listen socket
-    server_addr->sin_family = AF_INET; //assign the address family of the server
-    server_addr->sin_addr.s_addr = INADDR_ANY; //assign the server's ip
-
-    //Bind the socket to an address using bind() system call
-    int bindfd = bind(socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    if(bindfd == -1){
-        fprintf(stderr, "Error: Binding cproxy listen socket failed\n");
-        close(socket);
-        exit(errno);
-    }
-}
-
 int main(int argc, char *argv[]) {
     if(argc < 2) {
         fprintf(stderr, "Error: No port specified\n");
@@ -90,8 +76,18 @@ int main(int argc, char *argv[]) {
         exit(errno);
     }
 
+    // Setup the sockaddr for the listen socket
     struct sockaddr_in server_addr;
-    setup_cproxy_connection(&server_addr, listen_sock, listen_port);
+    server_addr.sin_family = AF_INET; //assign the address family of the server
+    server_addr.sin_addr.s_addr = INADDR_ANY; //assign the server's ip
+
+    //Bind the socket to an address using bind() system call
+    int bindfd = bind(listen_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    if(bindfd == -1){
+        fprintf(stderr, "Error: Binding cproxy listen socket failed\n");
+        close(listen_sock);
+        exit(errno);
+    }
 
     //Listen for connections with listen()
     int listen_rt = listen(listen_sock, MAX_PENDING);
