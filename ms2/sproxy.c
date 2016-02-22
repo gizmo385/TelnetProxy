@@ -101,9 +101,9 @@ int main(int argc, char *argv[]) {
 
     // Accept client connection
     socklen_t len;
-    int client_connection = accept(listen_sock, (struct sockaddr *)&server_addr, &len);
+    int cproxy_connection = accept(listen_sock, (struct sockaddr *)&server_addr, &len);
 
-    if(client_connection < 0){
+    if(cproxy_connection < 0){
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
         exit(errno);
@@ -157,17 +157,20 @@ int main(int argc, char *argv[]) {
 
                 // Write to the client
                 send(listen_sock, (void *) buf, payload_length, 0);
+                /*send(cproxy_connection, (void *) buf, payload_length, 0);*/
             }
 
             if(FD_ISSET(listen_sock, &socket_fds)) {
                 // Recieve from the client
-                payload_length = read(listen_sock, &buf, BUFFER_SIZE);
+                payload_length = read(cproxy_connection, &buf, BUFFER_SIZE);
 
                 if(payload_length <= 0) {
                     close(listen_sock);
                     close(telnet_sock);
                     break;
                 }
+
+                printf("Recieved from client (%d): %s\n", payload_length, buf);
 
                 // Write to the telnet connection
                 send(telnet_sock, (void *) buf, payload_length, 0);

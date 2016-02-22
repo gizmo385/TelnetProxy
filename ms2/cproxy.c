@@ -104,10 +104,13 @@ int main(int argc, char *argv[]) {
     // Accept client connection
     socklen_t len;
     int client_connection = accept(listen_sock, (struct sockaddr *)&listen_addr, &len);
+
     if(client_connection < 0){
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
         exit(errno);
+    } else {
+        printf("Accepted client! :D\n");
     }
 
     // Set up our descriptor set for select
@@ -154,13 +157,17 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
+                printf("Recieved from client(%d): %s\n", payload_length, buf);
+
                 // Write to the client
                 send(listen_sock, (void *) buf, payload_length, 0);
             }
 
             if(FD_ISSET(listen_sock, &socket_fds)) {
                 // Recieve from the client
-                payload_length = read(listen_sock, &buf, BUFFER_SIZE);
+                payload_length = read(client_connection, &buf, BUFFER_SIZE);
+
+                printf("Recieved from server(%d): %s\n", payload_length, buf);
 
                 if(payload_length <= 0) {
                     close(listen_sock);
@@ -168,7 +175,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                // Write to the telnet connection
+                // Write to the telnet connection (client)
                 send(server_sock, (void *) buf, payload_length, 0);
             }
         }
