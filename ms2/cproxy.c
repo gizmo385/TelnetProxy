@@ -163,8 +163,6 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                printf("Received %d bytes from the server\n", payload_length);
-
                 // Write to the client
                 send(client_connection, (void *) buf, payload_length, 0);
             }
@@ -186,8 +184,6 @@ int main(int argc, char *argv[]) {
                     close(server_sock);
 		    break;
 		}
-
-                printf("Received %d bytes from the client\n", payload_length);
 
                 // Write to the telnet connection (client)
                 send(server_sock, (void *) buf, payload_length, 0);
