@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
         close(telnet_sock);
-	close(cproxy_connection);
+        close(cproxy_connection);
         exit(errno);
     } else {
         printf("Accepted connection :D\n");
