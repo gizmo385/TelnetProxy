@@ -119,9 +119,6 @@ int main(int argc, char *argv[]) {
 
     // Set up our descriptor set for select
     fd_set socket_fds;
-    FD_ZERO(&socket_fds);
-    FD_SET(server_sock, &socket_fds);
-    FD_SET(client_connection, &socket_fds);
 
     // Set up the arguments
     int max_fd = (server_sock > client_connection) ? server_sock : client_connection;
@@ -138,7 +135,10 @@ int main(int argc, char *argv[]) {
 
     // Actually forward the data
     while(true) {
-        rv = select(max_fd + 1, &socket_fds, NULL, NULL, &tv);
+        FD_ZERO(&socket_fds);
+        FD_SET(server_sock, &socket_fds);
+        FD_SET(client_connection, &socket_fds);
+        rv = select(max_fd + 1, &socket_fds, NULL, NULL, NULL);
 
         // Determine the value of rv
         if(rv == -1) {
@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
                 // Recieve from the server
                 payload_length = read(server_sock, &buf, BUFFER_SIZE);
 
-                if(payload_length <= 0) {
+                if(payload_length < 0) {
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
                 // Recieve from the client
                 payload_length = read(client_connection, &buf, BUFFER_SIZE);
 
-                if(payload_length <= 0) {
+                if(payload_length < 0) {
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
@@ -193,4 +193,3 @@ int main(int argc, char *argv[]) {
     close(listen_sock);
     close(server_sock);
 }
-
