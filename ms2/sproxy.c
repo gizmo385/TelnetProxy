@@ -74,6 +74,7 @@ int main(int argc, char *argv[]) {
     int listen_sock = socket(PF_INET, SOCK_STREAM, 0);
     if(listen_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for cproxy!\n");
+        close(telnet_sock);
         exit(errno);
     }
 
@@ -88,6 +89,7 @@ int main(int argc, char *argv[]) {
     if(bindfd == -1){
         fprintf(stderr, "Error: Binding cproxy listen socket failed\n");
         close(listen_sock);
+        close(telnet_sock);
         exit(errno);
     }
 
@@ -96,6 +98,7 @@ int main(int argc, char *argv[]) {
     if(listen_rt == -1){
         fprintf(stderr, "Error: Listen call failed\n");
         close(listen_sock);
+        close(telnet_sock);
         exit(errno);
     }
 
@@ -106,6 +109,7 @@ int main(int argc, char *argv[]) {
     if(cproxy_connection < 0){
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
+        close(telnet_sock);
         exit(errno);
     } else {
         printf("Accepted connection :D\n");
@@ -152,6 +156,7 @@ int main(int argc, char *argv[]) {
 
                 if(payload_length <= 0) {
                     close(cproxy_connection);
+                    close(listen_sock);
                     close(telnet_sock);
                     break;
                 }
@@ -168,6 +173,7 @@ int main(int argc, char *argv[]) {
 
                 if(payload_length <= 0) {
                     close(cproxy_connection);
+                    close(listen_sock);
                     close(telnet_sock);
                     break;
                 }

@@ -47,7 +47,6 @@ void connect_to_server(int socket, char *server_hostname, int server_port, int *
 
     if(*connection == -1){
         fprintf(stderr, "ERROR: Connecting to sproxy failed!\n");
-        close(*connection);
         exit(errno);
     }
 }
@@ -159,6 +158,7 @@ int main(int argc, char *argv[]) {
 
                 if(payload_length <= 0) {
                     close(client_connection);
+                    close(listen_sock);
                     close(server_sock);
                     break;
                 }
