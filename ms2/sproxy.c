@@ -25,6 +25,19 @@ sproxy.c -- Connects to the telnet daemon and listens for the cproxy connection
 #define BUFFER_SIZE 1024
 #define MAX_PENDING 5
 
+void set_socket_opts(int socket) {
+    int enable = 1;
+    if(setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+        fprintf(stderr, "Error while attempting to set SO_REUSEADDR!\n");
+        exit(errno);
+    }
+
+    if(setsockopt(socket, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+        fprintf(stderr, "Error while attempting to set SO_REUSEPORT!\n");
+        exit(errno);
+    }
+}
+
 void connect_to_telnet(int socket, int *connection) {
     /* Connect to the telnet daemon on localhost:23 */
     struct hostent *hp = gethostbyname("localhost");
@@ -68,6 +81,7 @@ int main(int argc, char *argv[]) {
         exit(errno);
     }
 
+    set_socket_opts(telnet_sock);
     int telnet_conn = -1;
     connect_to_telnet(telnet_sock, &telnet_conn);
 
@@ -79,6 +93,8 @@ int main(int argc, char *argv[]) {
         close(listen_sock);
         exit(errno);
     }
+
+    set_socket_opts(listen_sock);
 
     // Setup the sockaddr for the listen socket
     struct sockaddr_in server_addr;

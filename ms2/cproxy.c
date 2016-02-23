@@ -25,6 +25,19 @@ cproxy.c -- Connects to the server proxy and listens for a telnet connection
 #define MAX_PENDING 5
 #define BUFFER_SIZE 1024
 
+void set_socket_opts(int socket) {
+    int enable = 1;
+    if(setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+        fprintf(stderr, "Error while attempting to set SO_REUSEADDR!\n");
+        exit(errno);
+    }
+
+    if(setsockopt(socket, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+        fprintf(stderr, "Error while attempting to set SO_REUSEPORT!\n");
+        exit(errno);
+    }
+}
+
 void connect_to_server(int socket, char *server_hostname, int server_port, int *connection) {
     /* Connect to the server on specified port */
     struct hostent *hp = gethostbyname(server_hostname);
@@ -69,6 +82,7 @@ int main(int argc, char *argv[]) {
         exit(errno);
     }
 
+    set_socket_opts(server_sock);
     int telnet_conn = -1;
     connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
 
@@ -81,6 +95,8 @@ int main(int argc, char *argv[]) {
 	close(listen_sock);
         exit(errno);
     }
+
+    set_socket_opts(listen_sock);
 
     // Setup the sockaddr for the listen socket
     struct sockaddr_in listen_addr;
@@ -181,7 +197,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-		if(strcmp(buf, "exit") == 0) {   
+		if(strcmp(buf, "exit") == 0) {
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
