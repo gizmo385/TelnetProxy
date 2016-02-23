@@ -65,6 +65,7 @@ int main(int argc, char *argv[]) {
     int server_sock = socket(PF_INET, SOCK_STREAM, 0);
     if(server_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
+	close(server_sock);
         exit(errno);
     }
 
@@ -77,6 +78,7 @@ int main(int argc, char *argv[]) {
     if(listen_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for cproxy!\n");
         close(server_sock);
+	close(listen_sock);
         exit(errno);
     }
 
@@ -112,6 +114,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
         close(server_sock);
+	close(client_connection);
         exit(errno);
     } else {
         printf("Accepted client! :D\n");
