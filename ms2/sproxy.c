@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
                 // Recieve from telnet daemon
                 payload_length = read(telnet_sock, &buf, BUFFER_SIZE);
 
-                if(payload_length < 0) {
+                if(payload_length <= 0) {
                     close(cproxy_connection);
                     close(listen_sock);
                     close(telnet_sock);
@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
                 // Recieve from the client
                 payload_length = read(cproxy_connection, &buf, BUFFER_SIZE);
 
-                if(payload_length < 0) {
+                if(payload_length <= 0) {
                     close(cproxy_connection);
                     close(listen_sock);
                     close(telnet_sock);

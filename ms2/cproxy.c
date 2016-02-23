@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
                 // Recieve from the server
                 payload_length = read(server_sock, &buf, BUFFER_SIZE);
 
-                if(payload_length < 0) {
+                if(payload_length <= 0) {
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
@@ -173,12 +173,19 @@ int main(int argc, char *argv[]) {
                 // Recieve from the client
                 payload_length = read(client_connection, &buf, BUFFER_SIZE);
 
-                if(payload_length < 0) {
+                if(payload_length <= 0) {
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
                     break;
                 }
+
+		if(strcmp(buf, "exit") == 0) {   
+                    close(client_connection);
+                    close(listen_sock);
+                    close(server_sock);
+		    break;
+		}
 
                 printf("Received %d bytes from the client\n", payload_length);
 
