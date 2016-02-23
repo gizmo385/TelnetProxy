@@ -132,8 +132,6 @@ int main(int argc, char *argv[]) {
         close(server_sock);
 	close(client_connection);
         exit(errno);
-    } else {
-        printf("Accepted client! :D\n");
     }
 
     // Set up our descriptor set for select

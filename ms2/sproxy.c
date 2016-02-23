@@ -130,8 +130,6 @@ int main(int argc, char *argv[]) {
         close(telnet_sock);
         close(cproxy_connection);
         exit(errno);
-    } else {
-        printf("Accepted connection :D\n");
     }
 
     // Set up our descriptor set for select
