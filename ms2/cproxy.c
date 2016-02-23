@@ -117,10 +117,10 @@ int main(int argc, char *argv[]) {
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
     FD_SET(server_sock, &socket_fds);
-    FD_SET(listen_sock, &socket_fds);
+    FD_SET(client_connection, &socket_fds);
 
     // Set up the arguments
-    int max_fd = (server_sock > listen_sock) ? server_sock : listen_sock;
+    int max_fd = (server_sock > client_connection) ? server_sock : client_connection;
     struct timeval tv;
     tv.tv_sec = 10;
     tv.tv_usec = 500000;
@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
             // This means that an error occured
             fprintf(stderr, "ERROR: Issue while selecting socket\n");
             close(server_sock);
-            close(listen_sock);
+            close(client_connection);
             exit(errno);
         } else if(rv == 0) {
             // Timeout: This is not an issue in our program
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
                 payload_length = read(server_sock, &buf, BUFFER_SIZE);
 
                 if(payload_length <= 0) {
-                    close(listen_sock);
+                    close(client_connection);
                     close(server_sock);
                     break;
                 }
@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
                 printf("Recieved from client(%d): %s\n", payload_length, buf);
 
                 // Write to the client
-                send(listen_sock, (void *) buf, payload_length, 0);
+                send(client_connection, (void *) buf, payload_length, 0);
             }
 
             if(FD_ISSET(listen_sock, &socket_fds)) {
@@ -182,6 +182,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Close our connections
+    close(client_connection);
     close(listen_sock);
     close(server_sock);
 }

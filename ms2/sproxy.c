@@ -115,10 +115,10 @@ int main(int argc, char *argv[]) {
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
     FD_SET(telnet_sock, &socket_fds);
-    FD_SET(listen_sock, &socket_fds);
+    FD_SET(cproxy_connection, &socket_fds);
 
     // Set up the arguments
-    int max_fd = (telnet_sock > listen_sock) ? telnet_sock : listen_sock;
+    int max_fd = (telnet_sock > cproxy_connection) ? telnet_sock : cproxy_connection;
     struct timeval tv;
     tv.tv_sec = 10;
     tv.tv_usec = 500000;
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
             // This means that an error occured
             fprintf(stderr, "ERROR: Issue while selecting socket\n");
             close(telnet_sock);
-            close(listen_sock);
+            close(cproxy_connection);
             exit(errno);
         } else if(rv == 0) {
             // Timeout: This is not an issue in our program
@@ -150,14 +150,13 @@ int main(int argc, char *argv[]) {
                 payload_length = read(telnet_sock, &buf, BUFFER_SIZE);
 
                 if(payload_length <= 0) {
-                    close(listen_sock);
+                    close(cproxy_connection);
                     close(telnet_sock);
                     break;
                 }
 
                 // Write to the client
-                send(listen_sock, (void *) buf, payload_length, 0);
-                /*send(cproxy_connection, (void *) buf, payload_length, 0);*/
+                send(cproxy_connection, (void *) buf, payload_length, 0);
             }
 
             if(FD_ISSET(listen_sock, &socket_fds)) {
@@ -165,7 +164,7 @@ int main(int argc, char *argv[]) {
                 payload_length = read(cproxy_connection, &buf, BUFFER_SIZE);
 
                 if(payload_length <= 0) {
-                    close(listen_sock);
+                    close(cproxy_connection);
                     close(telnet_sock);
                     break;
                 }
@@ -180,5 +179,6 @@ int main(int argc, char *argv[]) {
 
     // Close our connections
     close(listen_sock);
+    close(cproxy_connection);
     close(telnet_sock);
 }
