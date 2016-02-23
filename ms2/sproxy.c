@@ -140,6 +140,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "ERROR: Issue while selecting socket\n");
             close(telnet_sock);
             close(cproxy_connection);
+            close(listen_sock);
             exit(errno);
         } else if(rv == 0) {
             // Timeout: This is not an issue in our program
