@@ -155,11 +155,13 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
+                printf("Received %d bytes from telnet daemon\n", payload_length);
+
                 // Write to the client
                 send(cproxy_connection, (void *) buf, payload_length, 0);
             }
 
-            if(FD_ISSET(listen_sock, &socket_fds)) {
+            if(FD_ISSET(cproxy_connection, &socket_fds)) {
                 // Recieve from the client
                 payload_length = read(cproxy_connection, &buf, BUFFER_SIZE);
 
@@ -169,7 +171,8 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                printf("Recieved from client (%d): %s\n", payload_length, buf);
+                printf("Received %d bytes from the client\n", payload_length);
+
 
                 // Write to the telnet connection
                 send(telnet_sock, (void *) buf, payload_length, 0);

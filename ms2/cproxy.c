@@ -74,8 +74,10 @@ int main(int argc, char *argv[]) {
 
     // Setup the socket to listen for cproxy
     int listen_sock = socket(PF_INET, SOCK_STREAM, 0);
+
     if(listen_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for cproxy!\n");
+        close(server_sock);
         exit(errno);
     }
 
@@ -90,6 +92,7 @@ int main(int argc, char *argv[]) {
     if(bindfd == -1){
         fprintf(stderr, "Error: Binding cproxy listen socket failed\n");
         close(listen_sock);
+        close(server_sock);
         exit(errno);
     }
 
@@ -98,6 +101,7 @@ int main(int argc, char *argv[]) {
     if(listen_rt == -1){
         fprintf(stderr, "Error: Listen call failed\n");
         close(listen_sock);
+        close(server_sock);
         exit(errno);
     }
 
@@ -108,6 +112,7 @@ int main(int argc, char *argv[]) {
     if(client_connection < 0){
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
+        close(server_sock);
         exit(errno);
     } else {
         printf("Accepted client! :D\n");
@@ -142,6 +147,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "ERROR: Issue while selecting socket\n");
             close(server_sock);
             close(client_connection);
+            close(listen_sock);
             exit(errno);
         } else if(rv == 0) {
             // Timeout: This is not an issue in our program
@@ -157,23 +163,24 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                printf("Recieved from client(%d): %s\n", payload_length, buf);
+                printf("Received %d bytes from the server\n", payload_length);
 
                 // Write to the client
                 send(client_connection, (void *) buf, payload_length, 0);
             }
 
-            if(FD_ISSET(listen_sock, &socket_fds)) {
+            if(FD_ISSET(client_connection, &socket_fds)) {
                 // Recieve from the client
                 payload_length = read(client_connection, &buf, BUFFER_SIZE);
 
-                printf("Recieved from server(%d): %s\n", payload_length, buf);
-
                 if(payload_length <= 0) {
+                    close(client_connection);
                     close(listen_sock);
                     close(server_sock);
                     break;
                 }
+
+                printf("Received %d bytes from the client\n", payload_length);
 
                 // Write to the telnet connection (client)
                 send(server_sock, (void *) buf, payload_length, 0);
