@@ -20,6 +20,7 @@ sproxy.c -- Connects to the telnet daemon and listens for the cproxy connection
 #include <stdlib.h>
 #include <strings.h>
 #include <errno.h>
+#include "protocol.h"
 
 #define TELNET_PORT 23
 #define BUFFER_SIZE 1024
@@ -137,9 +138,8 @@ int main(int argc, char *argv[]) {
 
     // Set up the arguments
     int max_fd = (telnet_sock > cproxy_connection) ? telnet_sock : cproxy_connection;
-    struct timeval tv;
-    tv.tv_sec = 10;
-    tv.tv_usec = 500000;
+    struct timeval timeout;
+    timeout.tv_sec = 1;
     int rv;
 
     // Create the buffer
@@ -164,7 +164,9 @@ int main(int argc, char *argv[]) {
             close(listen_sock);
             exit(errno);
         } else if(rv == 0) {
-            // Timeout: This is not an issue in our program
+            // Timeout: Send a heartbeat to the client
+            message_t *heartbeat = new_heartbeat_message();
+            send_message(cproxy_connection, heartbeat);
         } else {
             // Determine which socket (or both) has data waiting
             if(FD_ISSET(telnet_sock, &socket_fds)) {
