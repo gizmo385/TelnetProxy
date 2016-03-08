@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
         FD_ZERO(&socket_fds);
         FD_SET(telnet_sock, &socket_fds);
         FD_SET(cproxy_connection, &socket_fds);
-        rv = select(max_fd + 1, &socket_fds, NULL, NULL, NULL);
+        rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
 
         // Determine the value of rv
         if(rv == -1) {

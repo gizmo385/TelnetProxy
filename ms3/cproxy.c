@@ -140,9 +140,8 @@ int main(int argc, char *argv[]) {
 
     // Set up the arguments
     int max_fd = (server_sock > client_connection) ? server_sock : client_connection;
-    struct timeval tv;
-    tv.tv_sec = 10;
-    tv.tv_usec = 500000;
+    struct timeval timeout;
+    timeout.tv_sec = 1;
     int rv;
 
     // Create the buffer
@@ -156,7 +155,7 @@ int main(int argc, char *argv[]) {
         FD_ZERO(&socket_fds);
         FD_SET(server_sock, &socket_fds);
         FD_SET(client_connection, &socket_fds);
-        rv = select(max_fd + 1, &socket_fds, NULL, NULL, NULL);
+        rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
 
         // Determine the value of rv
         if(rv == -1) {
@@ -167,22 +166,32 @@ int main(int argc, char *argv[]) {
             close(listen_sock);
             exit(errno);
         } else if(rv == 0) {
-            // Timeout: This is not an issue in our program
+            // Timeout: Send a heartbeat to the server
+            message_t *heartbeat = new_heartbeat_message();
+            send_message(server_sock, heartbeat);
         } else {
             // Determine which socket (or both) has data waiting
             if(FD_ISSET(server_sock, &socket_fds)) {
-                // Recieve from the server
-                payload_length = read(server_sock, &buf, BUFFER_SIZE);
+                // Receive from the server
+                message_t *message = read_message(server_sock);
 
-                if(payload_length <= 0) {
-                    close(client_connection);
-                    close(listen_sock);
-                    close(server_sock);
-                    break;
+                switch(message->message_flag) {
+                    case HEARTBEAT_FLAG:
+                        // TODO UPDATE TIMEOUT COUNTER
+                        break;
+                    case DATA_FLAG:
+                        {
+                            data_message_t *data = message->body->data;
+                            send(client_connection, (void *) data->payload, data->message_size, 0);
+                            break;
+                        }
+                    case CONNECTION_FLAG:
+                        // TODO RE-ESTABLISH CONNECTION THINGY
+                        break;
+                    default:
+                        // TODO HANDLE ERROR
+                        break;
                 }
-
-                // Write to the client
-                send(client_connection, (void *) buf, payload_length, 0);
             }
 
             if(FD_ISSET(client_connection, &socket_fds)) {
@@ -203,8 +212,9 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                // Write to the telnet connection (client)
-                send(server_sock, (void *) buf, payload_length, 0);
+                // Write to the server
+                message_t *message = new_data_message(0, 0, payload_length, buf);
+                send_message(server_sock, message);
             }
         }
     }
