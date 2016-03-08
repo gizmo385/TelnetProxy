@@ -3,7 +3,7 @@
 #define CONNECTION_FLAG 3
 
 #define IP_SIZE 6
-
+#define BUFFER_SIZE 1024
 
 typedef struct {
     int message_size;
@@ -25,11 +25,13 @@ typedef union message_body_t {
 } message_body_t;
 
 typedef struct message_t {
-    char message_flag;
+    int message_flag;
     message_body_t *body;
 } message_t;
 
 extern void send_message(int socket, message_t *message);
+extern message_t *read_message(int socket);
+
 extern message_t *new_heartbeat_message();
 extern message_t *new_conn_message(int seq_num, int ack_num, char *old_ip, char *new_ip);
 extern message_t *new_data_message(int seq_num, int ack_num, int message_size, char *payload);
