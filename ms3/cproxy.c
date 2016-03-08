@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                if(strcmp(buf, "exit") == 0) {
+                if((strcmp(buf, "exit") == 0) || (strcmp(buf, "logout") == 0)) {
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
