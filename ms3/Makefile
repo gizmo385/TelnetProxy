@@ -1,19 +1,15 @@
-CFILES = sproxy.c cproxy.c
-FILES = sproxy cproxy
 CC = gcc
 CFLAGS = -g
 CFLAGS += -Wall
-#CFLAGS += -w
-CFLAGS += -DYYDEBUG=1
 CFLAGS += -std=gnu99
 
 all: sproxy cproxy
 
-sproxy: sproxy.o protocol.h
-	${CC} ${CFLAGS} -c protocol.h -o sproxy sproxy.o
+sproxy: sproxy.o protocol.o
+	${CC} ${CFLAGS} -o sproxy sproxy.o protocol.o
 
-cproxy: cproxy.o protocol.h
-	${CC} ${CFLAGS} -c protocol.h -o cproxy cproxy.o
+cproxy: cproxy.o protocol.o
+	${CC} ${CFLAGS} -o cproxy cproxy.o protocol.o
 
 %.o: %.c %.h
 	${CC} ${CFLAGS} -c $^
