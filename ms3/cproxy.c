@@ -22,8 +22,9 @@ cproxy.c -- Connects to the server proxy and listens for a telnet connection
 #include <strings.h>
 #include <errno.h>
 
+#include "protocol.h"
+
 #define MAX_PENDING 5
-#define BUFFER_SIZE 1024
 
 void set_socket_opts(int socket) {
     int enable = 1;
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
     int server_sock = socket(PF_INET, SOCK_STREAM, 0);
     if(server_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
-	close(server_sock);
+        close(server_sock);
         exit(errno);
     }
 
@@ -92,7 +93,7 @@ int main(int argc, char *argv[]) {
     if(listen_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for cproxy!\n");
         close(server_sock);
-	close(listen_sock);
+        close(listen_sock);
         exit(errno);
     }
 
@@ -130,7 +131,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error: connection accept failed\n");
         close(listen_sock);
         close(server_sock);
-	close(client_connection);
+        close(client_connection);
         exit(errno);
     }
 
@@ -195,12 +196,12 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-		if(strcmp(buf, "exit") == 0) {
+                if(strcmp(buf, "exit") == 0) {
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
-		    break;
-		}
+                    break;
+                }
 
                 // Write to the telnet connection (client)
                 send(server_sock, (void *) buf, payload_length, 0);
