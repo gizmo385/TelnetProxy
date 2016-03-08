@@ -23,7 +23,6 @@ sproxy.c -- Connects to the telnet daemon and listens for the cproxy connection
 #include "protocol.h"
 
 #define TELNET_PORT 23
-#define BUFFER_SIZE 1024
 #define MAX_PENDING 5
 
 void set_socket_opts(int socket) {
@@ -181,22 +180,32 @@ int main(int argc, char *argv[]) {
                 }
 
                 // Write to the client
-                send(cproxy_connection, (void *) buf, payload_length, 0);
+                // TODO: REPLACE 0/0
+                message_t *message = new_data_message(0, 0, payload_length, buf);
+                send_message(cproxy_connection, message);
             }
 
             if(FD_ISSET(cproxy_connection, &socket_fds)) {
                 // Recieve from the client
-                payload_length = read(cproxy_connection, &buf, BUFFER_SIZE);
+                message_t *message = read_message(cproxy_connection);
 
-                if(payload_length <= 0) {
-                    close(cproxy_connection);
-                    close(listen_sock);
-                    close(telnet_sock);
-                    break;
+                switch(message->message_flag) {
+                    case HEARTBEAT_FLAG:
+                        // TODO UPDATE TIMEOUT COUNTER
+                        break;
+                    case DATA_FLAG:
+                        {
+                            data_message_t *data = message->body->data;
+                            send(telnet_sock, (void *) data->payload, data->message_size, 0);
+                            break;
+                        }
+                    case CONNECTION_FLAG:
+                        // TODO RE-ESTABLISH CONNECTION THINGY
+                        break;
+                    default:
+                        // TODO HANDLE ERROR
+                        break;
                 }
-
-                // Write to the telnet connection
-                send(telnet_sock, (void *) buf, payload_length, 0);
             }
         }
     }
