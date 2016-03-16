@@ -189,6 +189,10 @@ int main(int argc, char *argv[]) {
                 // Recieve from the client
                 message_t *message = read_message(cproxy_connection);
 
+                if(!message) {
+                    continue;
+                }
+
                 switch(message->message_flag) {
                     case HEARTBEAT_FLAG:
                         // TODO UPDATE TIMEOUT COUNTER

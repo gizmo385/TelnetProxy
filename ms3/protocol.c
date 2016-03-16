@@ -19,8 +19,9 @@ void send_message(int socket, message_t *message) {
 
     // Send the message header
     uint32_t n_message_flag = htonl((uint32_t) message->message_flag);
-    send(socket, (void *) &message->message_flag, sizeof(n_message_flag), 0);
+    send(socket, (void *) &n_message_flag, sizeof(n_message_flag), 0);
 
+    // Send the message body
     switch(message->message_flag) {
         case HEARTBEAT_FLAG: // No body
             break;
@@ -29,14 +30,14 @@ void send_message(int socket, message_t *message) {
                 data_message_t *data = message->body->data;
 
                 // Convert the integer types
-                uint32_t n_message_size = htonl((uint32_t) data->message_size);
-                uint32_t n_seq_num = htonl((uint32_t) data->seq_num);
-                uint32_t n_ack_num = htonl((uint32_t) data->ack_num);
+                uint32_t message_size = htonl((uint32_t) data->message_size);
+                uint32_t seq_num = htonl((uint32_t) data->seq_num);
+                uint32_t ack_num = htonl((uint32_t) data->ack_num);
 
                 // Send the actual data
-                send(socket, (void *) &n_message_size, sizeof(n_message_size), 0);
-                send(socket, (void *) &n_seq_num, sizeof(n_seq_num), 0);
-                send(socket, (void *) &n_ack_num, sizeof(n_ack_num), 0);
+                send(socket, (void *) &message_size, sizeof(message_size), 0);
+                send(socket, (void *) &seq_num, sizeof(seq_num), 0);
+                send(socket, (void *) &ack_num, sizeof(ack_num), 0);
                 send(socket, (void *) data->payload, data->message_size, 0);
                 break;
             }
@@ -45,12 +46,12 @@ void send_message(int socket, message_t *message) {
                 conn_message_t *conn = message->body->conn;
 
                 // Convert the integer types
-                uint32_t n_seq_num = htonl((uint32_t) conn->seq_num);
-                uint32_t n_ack_num = htonl((uint32_t) conn->ack_num);
+                uint32_t seq_num = htonl((uint32_t) conn->seq_num);
+                uint32_t ack_num = htonl((uint32_t) conn->ack_num);
 
                 // Send the actual data
-                send(socket, (void *) &n_seq_num, sizeof(n_seq_num), 0);
-                send(socket, (void *) &n_ack_num, sizeof(n_ack_num), 0);
+                send(socket, (void *) &seq_num, sizeof(seq_num), 0);
+                send(socket, (void *) &ack_num, sizeof(ack_num), 0);
                 send(socket, (void *) conn->old_ip, sizeof(char) * IP_SIZE, 0);
                 send(socket, (void *) conn->new_ip, sizeof(char) * IP_SIZE, 0);
                 break;
@@ -63,8 +64,10 @@ void send_message(int socket, message_t *message) {
 
 message_t *read_message(int socket) {
     uint32_t n_message_flag;
-    read(socket, &n_message_flag, sizeof(uint32_t));
-    uint32_t message_flag = ntohl(n_message_flag);
+    read(socket, (char *) &n_message_flag, sizeof(uint32_t));
+    int message_flag = ntohl(n_message_flag);
+
+    printf("Read message with flag %d\n from socket %d\n", message_flag, socket);
 
     switch(message_flag) {
         case HEARTBEAT_FLAG:
@@ -76,10 +79,10 @@ message_t *read_message(int socket) {
                 char *old_ip = calloc(IP_SIZE, sizeof(char));
                 char *new_ip = calloc(IP_SIZE, sizeof(char));
 
-                read(socket, &seq_num, sizeof(uint32_t));
-                read(socket, &ack_num, sizeof(uint32_t));
-                read(socket, old_ip, sizeof(char) * IP_SIZE);
-                read(socket, new_ip, sizeof(char) * IP_SIZE);
+                read(socket, (char *) &seq_num, sizeof(uint32_t));
+                read(socket, (char *) &ack_num, sizeof(uint32_t));
+                read(socket, (char *) old_ip, sizeof(char) * IP_SIZE);
+                read(socket, (char *) new_ip, sizeof(char) * IP_SIZE);
 
                 return new_conn_message(ntohl(seq_num), ntohl(ack_num), old_ip, new_ip);
                 break;
@@ -88,9 +91,9 @@ message_t *read_message(int socket) {
             {
                 uint32_t message_size, seq_num, ack_num;
 
-                read(socket, &message_size, sizeof(uint32_t));
-                read(socket, &seq_num, sizeof(uint32_t));
-                read(socket, &ack_num, sizeof(uint32_t));
+                read(socket, (char *) &message_size, sizeof(uint32_t));
+                read(socket, (char *) &seq_num, sizeof(uint32_t));
+                read(socket, (char *) &ack_num, sizeof(uint32_t));
 
                 message_size = ntohl(message_size);
                 seq_num = ntohl(seq_num);

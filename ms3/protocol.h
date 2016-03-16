@@ -1,9 +1,10 @@
-#define HEARTBEAT_FLAG 1
-#define DATA_FLAG 2
+#include <stdlib.h>
+#define HEARTBEAT_FLAG  1
+#define DATA_FLAG       2
 #define CONNECTION_FLAG 3
 
-#define IP_SIZE 6
-#define BUFFER_SIZE 1024
+#define IP_SIZE         6
+#define BUFFER_SIZE     1024
 
 typedef struct {
     int message_size;
@@ -25,7 +26,7 @@ typedef union message_body_t {
 } message_body_t;
 
 typedef struct message_t {
-    int message_flag;
+    uint32_t message_flag;
     message_body_t *body;
 } message_t;
 

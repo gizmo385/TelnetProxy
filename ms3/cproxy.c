@@ -175,6 +175,10 @@ int main(int argc, char *argv[]) {
                 // Receive from the server
                 message_t *message = read_message(server_sock);
 
+                if(!message) {
+                    continue;
+                }
+
                 switch(message->message_flag) {
                     case HEARTBEAT_FLAG:
                         // TODO UPDATE TIMEOUT COUNTER
