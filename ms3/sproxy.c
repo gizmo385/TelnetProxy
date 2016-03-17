@@ -147,7 +147,10 @@ int main(int argc, char *argv[]) {
     // Length of the payload recieved
     int payload_length = -1;
 
-    // Actually forward the data
+    // When timeouts reach a certain threshold, a disconnect is assumed
+    int recorded_timeouts = 0;
+
+    // Main connection loop
     while(true) {
         FD_ZERO(&socket_fds);
         FD_SET(telnet_sock, &socket_fds);
@@ -163,9 +166,17 @@ int main(int argc, char *argv[]) {
             close(listen_sock);
             exit(errno);
         } else if(rv == 0) {
-            // Timeout: Send a heartbeat to the client
-            message_t *heartbeat = new_heartbeat_message();
-            send_message(cproxy_connection, heartbeat);
+            // Timeout: Increase the timeout counter
+            recorded_timeouts += 1;
+
+            fprintf(stderr, "WARNING: Timeout #%d while waiting for client.\n", recorded_timeouts);
+
+            if(recorded_timeouts >= TIMEOUT_THRESH) {
+                // We've experienced a certain number of timeouts,
+                // halt the connection
+
+                // Possibly wait for initial message from client before starting this timer?
+            }
         } else {
             // Determine which socket (or both) has data waiting
             if(FD_ISSET(telnet_sock, &socket_fds)) {
@@ -180,7 +191,7 @@ int main(int argc, char *argv[]) {
                 }
 
                 // Write to the client
-                // TODO: REPLACE 0/0
+                // TODO: REPLACE 0/0 with seq/ack
                 message_t *message = new_data_message(0, 0, payload_length, buf);
                 send_message(cproxy_connection, message);
             }
@@ -195,10 +206,14 @@ int main(int argc, char *argv[]) {
 
                 switch(message->message_flag) {
                     case HEARTBEAT_FLAG:
-                        // TODO UPDATE TIMEOUT COUNTER
+                        // We've recieved a heartbeat, so we can reset the timeout counter
+                        recorded_timeouts = 0;
                         break;
                     case DATA_FLAG:
                         {
+                            // We've recieved a message, so we can reset the timeout counter
+                            recorded_timeouts = 0;
+
                             data_message_t *data = message->body->data;
                             send(telnet_sock, (void *) data->payload, data->message_size, 0);
                             break;

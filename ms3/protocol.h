@@ -6,6 +6,8 @@
 #define IP_SIZE         6
 #define BUFFER_SIZE     1024
 
+#define TIMEOUT_THRESH  3
+
 typedef struct {
     int message_size;
     int seq_num;
