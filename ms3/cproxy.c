@@ -123,23 +123,14 @@ int main(int argc, char *argv[]) {
         exit(errno);
     }
 
-    // Accept client connection
     socklen_t len;
-    int client_connection = accept(listen_sock, (struct sockaddr *)&listen_addr, &len);
-
-    if(client_connection < 0){
-        fprintf(stderr, "Error: connection accept failed\n");
-        close(listen_sock);
-        close(server_sock);
-        close(client_connection);
-        exit(errno);
-    }
+    int client_connection = -1;
 
     // Set up our descriptor set for select
     fd_set socket_fds;
 
     // Set up the arguments
-    int max_fd = (server_sock > client_connection) ? server_sock : client_connection;
+    int max_fd = (server_sock > listen_sock) ? server_sock : listen_sock;
     struct timeval timeout;
     timeout.tv_sec = 1;
     int rv;
@@ -154,7 +145,13 @@ int main(int argc, char *argv[]) {
     while(true) {
         FD_ZERO(&socket_fds);
         FD_SET(server_sock, &socket_fds);
-        FD_SET(client_connection, &socket_fds);
+
+        if(client_connection < 0) {
+            FD_SET(listen_sock, &socket_fds);
+        } else {
+            FD_SET(client_connection, &socket_fds);
+        }
+
         rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
 
         // Determine the value of rv
@@ -167,10 +164,25 @@ int main(int argc, char *argv[]) {
             exit(errno);
         } else if(rv == 0) {
             // Timeout: Send a heartbeat to the server
+            printf("Sending heartbeat to server.\n");
             message_t *heartbeat = new_heartbeat_message();
             send_message(server_sock, heartbeat);
         } else {
-            // Determine which socket (or both) has data waiting
+            // If the listen socket has a message on it, the client is connecting
+            if(FD_ISSET(listen_sock, &socket_fds)) {
+                // Accept client connection
+                client_connection = accept(listen_sock, (struct sockaddr *)&listen_addr, &len);
+
+                if(client_connection < 0){
+                    fprintf(stderr, "Error: connection accept failed\n");
+                    close(listen_sock);
+                    close(server_sock);
+                    close(client_connection);
+                    exit(errno);
+                }
+            }
+
+            // If server_sock has a message, then the server has sent a message to the client
             if(FD_ISSET(server_sock, &socket_fds)) {
                 // Receive from the server
                 message_t *message = read_message(server_sock);
@@ -198,7 +210,8 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            if(FD_ISSET(client_connection, &socket_fds)) {
+            // If client_connection has a message, then client is sending something to the server
+            if(client_connection >= 0 && FD_ISSET(client_connection, &socket_fds)) {
                 // Recieve from the client
                 payload_length = read(client_connection, &buf, BUFFER_SIZE);
 

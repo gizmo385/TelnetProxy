@@ -169,13 +169,10 @@ int main(int argc, char *argv[]) {
             // Timeout: Increase the timeout counter
             recorded_timeouts += 1;
 
-            fprintf(stderr, "WARNING: Timeout #%d while waiting for client.\n", recorded_timeouts);
-
             if(recorded_timeouts >= TIMEOUT_THRESH) {
                 // We've experienced a certain number of timeouts,
-                // halt the connection
-
-                // Possibly wait for initial message from client before starting this timer?
+                // TODO: halt the connection
+                fprintf(stderr, "Connection timeout detected from cproxy.\n");
             }
         } else {
             // Determine which socket (or both) has data waiting
