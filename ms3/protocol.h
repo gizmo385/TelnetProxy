@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdint.h>
 #define HEARTBEAT_FLAG  1
 #define DATA_FLAG       2
 #define CONNECTION_FLAG 3
