@@ -20,7 +20,8 @@ sproxy.c -- Connects to the telnet daemon and listens for the cproxy connection
 #include <stdlib.h>
 #include <strings.h>
 #include <errno.h>
-#include "protocol.h"
+
+#include "list.h"
 
 #define TELNET_PORT 23
 #define MAX_PENDING 5
@@ -148,6 +149,9 @@ int main(int argc, char *argv[]) {
     // When timeouts reach a certain threshold, a disconnect is assumed
     int recorded_timeouts = 0;
 
+    // Buffer for messages
+    list_t *message_buffer = calloc(1, sizeof(list_t));
+
     // Main connection loop
     while(true) {
         struct timeval timeout;
@@ -191,7 +195,18 @@ int main(int argc, char *argv[]) {
                 // Write to the client
                 // TODO: REPLACE 0/0 with seq/ack
                 message_t *message = new_data_message(0, 0, payload_length, buf);
-                send_message(cproxy_connection, message);
+
+                if(cproxy_connection < 0) {
+                    list_t_add(message_buffer, message);
+                } else {
+                    while(message_buffer->head) {
+                        message_t *queued = list_t_pop(message_buffer);
+                        data_message_t *data_in_queue = queued->body->data;
+                        send(cproxy_connection, (void *) data_in_queue->payload,
+                                data_in_queue->message_size, 0);
+                    }
+                    send_message(cproxy_connection, message);
+                }
             }
 
             if(FD_ISSET(cproxy_connection, &socket_fds)) {
@@ -212,7 +227,6 @@ int main(int argc, char *argv[]) {
                         {
                             // We've recieved a message, so we can reset the timeout counter
                             recorded_timeouts = 0;
-
                             data_message_t *data = message->body->data;
                             send(telnet_sock, (void *) data->payload, data->message_size, 0);
                             break;
