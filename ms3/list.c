@@ -19,9 +19,8 @@ data_message_t* list_t_pop(list_t *list) {
     } else {
         data_message_t *message = list->head->message;
         list->head = list->head->next;
-    }
-
     return message;
+    }
 }
 
 data_message_t* list_t_peek(list_t *list) {
