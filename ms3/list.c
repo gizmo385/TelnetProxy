@@ -1,10 +1,11 @@
 #include "list.h"
 
 void list_t_add(list_t *list, message_t *message) {
-    node_t *node = calloc(1, sizeof(node_t));
+    node_t *node = malloc(sizeof(node_t));
     node->message = message;
+    node->next = NULL;
 
-    if(!list) {
+    if(!list->head) {
         list->head = node;
         list->tail = node;
     } else {
@@ -19,7 +20,7 @@ message_t *list_t_pop(list_t *list) {
     } else {
         message_t *message = list->head->message;
         list->head = list->head->next;
-    return message;
+        return message;
     }
 }
 
@@ -29,4 +30,12 @@ message_t* list_t_peek(list_t *list) {
     } else {
         return list->head->message;
     }
+}
+
+list_t *new_list_t() {
+    list_t *list = malloc(sizeof(list_t));
+    list->head = NULL;
+    list->tail = NULL;
+
+    return list;
 }

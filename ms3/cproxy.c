@@ -134,16 +134,17 @@ int main(int argc, char *argv[]) {
     int rv;
 
     // Create the buffer
-    char buf[BUFFER_SIZE];
+    char *buf = calloc(BUFFER_SIZE, sizeof(char));
 
     // Length of the payload recieved
     int payload_length = -1;
 
     // Buffer for messages
-    list_t *message_buffer = calloc(1, sizeof(list_t));
+    list_t *message_buffer = new_list_t();
 
     // Actually forward the data
     while(true) {
+        bzero(buf, BUFFER_SIZE);
         struct timeval timeout;
         timeout.tv_sec = 1;
         timeout.tv_usec = 0;
@@ -241,7 +242,7 @@ int main(int argc, char *argv[]) {
             // If client_connection has a message, then client is sending something to the server
             if(client_connection >= 0 && FD_ISSET(client_connection, &socket_fds)) {
                 // Recieve from the client
-                payload_length = read(client_connection, &buf, BUFFER_SIZE);
+                payload_length = read(client_connection, buf, BUFFER_SIZE);
 
                 if(payload_length <= 0) {
                     close(client_connection);

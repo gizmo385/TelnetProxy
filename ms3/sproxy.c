@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
     int rv;
 
     // Create the buffer
-    char buf[BUFFER_SIZE];
+    char *buf = calloc(BUFFER_SIZE, sizeof(char));
 
     // Length of the payload recieved
     int payload_length = -1;
@@ -150,10 +150,11 @@ int main(int argc, char *argv[]) {
     int recorded_timeouts = 0;
 
     // Buffer for messages
-    list_t *message_buffer = calloc(1, sizeof(list_t));
+    list_t *message_buffer = new_list_t();
 
     // Main connection loop
     while(true) {
+        bzero(buf, BUFFER_SIZE);
         struct timeval timeout;
         timeout.tv_sec = 1;
         timeout.tv_usec = 0;
@@ -183,7 +184,7 @@ int main(int argc, char *argv[]) {
             // Determine which socket (or both) has data waiting
             if(FD_ISSET(telnet_sock, &socket_fds)) {
                 // Recieve from telnet daemon
-                payload_length = read(telnet_sock, &buf, BUFFER_SIZE);
+                payload_length = read(telnet_sock, buf, BUFFER_SIZE);
 
                 if(payload_length <= 0) {
                     close(cproxy_connection);
@@ -199,11 +200,15 @@ int main(int argc, char *argv[]) {
                 if(cproxy_connection < 0) {
                     list_t_add(message_buffer, message);
                 } else {
-                    while(message_buffer->head) {
+                    node_t *head = message_buffer->head;
+                    while(head) {
                         message_t *queued = list_t_pop(message_buffer);
                         data_message_t *data_in_queue = queued->body->data;
-                        send(cproxy_connection, (void *) data_in_queue->payload,
-                                data_in_queue->message_size, 0);
+
+                        if(data_in_queue) {
+                            send(cproxy_connection, (void *) data_in_queue->payload,
+                                    data_in_queue->message_size, 0);
+                        }
                     }
                     send_message(cproxy_connection, message);
                 }

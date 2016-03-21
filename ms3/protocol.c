@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -100,7 +101,7 @@ message_t *read_message(int socket) {
                 ack_num = ntohl(ack_num);
 
                 char *payload = calloc(message_size, sizeof(char));
-                read(socket, &payload, message_size);
+                read(socket, payload, message_size);
 
                 return new_data_message(seq_num, ack_num, message_size, payload);
                 break;
@@ -139,13 +140,17 @@ message_t *new_conn_message(int seq_num, int ack_num, char *old_ip, char *new_ip
 }
 
 message_t *new_data_message(int seq_num, int ack_num, int message_size, char *payload) {
-    data_message_t *data = malloc(sizeof(data_message_t));
+    data_message_t *data = calloc(1, sizeof(data_message_t));
     data->seq_num = seq_num;
     data->ack_num = ack_num;
     data->message_size = message_size;
-    data->payload = payload;
 
-    message_body_t *body = malloc(sizeof(message_body_t));
+    char *payload_cpy = calloc(message_size, sizeof(char));
+    strncpy(payload_cpy, payload, message_size);
+
+    data->payload = payload_cpy;
+
+    message_body_t *body = calloc(1, sizeof(message_body_t));
     body->data = data;
 
     return new_message_t(DATA_FLAG, body);
