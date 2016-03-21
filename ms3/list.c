@@ -1,6 +1,6 @@
 #include "list.h"
 
-void list_t_add(list_t *list, data_message_t *message) {
+void list_t_add(list_t *list, message_t *message) {
     node_t *node = calloc(1, sizeof(node_t));
     node->message = message;
 
@@ -13,17 +13,17 @@ void list_t_add(list_t *list, data_message_t *message) {
     }
 }
 
-data_message_t* list_t_pop(list_t *list) {
+message_t *list_t_pop(list_t *list) {
     if(!list) {
         return NULL;
     } else {
-        data_message_t *message = list->head->message;
+        message_t *message = list->head->message;
         list->head = list->head->next;
     return message;
     }
 }
 
-data_message_t* list_t_peek(list_t *list) {
+message_t* list_t_peek(list_t *list) {
     if(!list) {
         return NULL;
     } else {

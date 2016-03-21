@@ -5,11 +5,11 @@ CFLAGS += -std=gnu99
 
 all: sproxy cproxy
 
-sproxy: sproxy.o protocol.o
-	${CC} ${CFLAGS} -o sproxy sproxy.o protocol.o
+sproxy: sproxy.o protocol.o list.o
+	${CC} ${CFLAGS} -o sproxy sproxy.o protocol.o list.o
 
-cproxy: cproxy.o protocol.o
-	${CC} ${CFLAGS} -o cproxy cproxy.o protocol.o
+cproxy: cproxy.o protocol.o list.o
+	${CC} ${CFLAGS} -o cproxy cproxy.o protocol.o list.o
 
 # Generic Object file pattern
 %.o: %.c %.h

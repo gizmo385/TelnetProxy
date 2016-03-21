@@ -22,7 +22,7 @@ cproxy.c -- Connects to the server proxy and listens for a telnet connection
 #include <strings.h>
 #include <errno.h>
 
-#include "protocol.h"
+#include "list.h"
 
 #define MAX_PENDING 5
 
@@ -139,6 +139,9 @@ int main(int argc, char *argv[]) {
     // Length of the payload recieved
     int payload_length = -1;
 
+    // Buffer for messages
+    list_t *message_buffer = calloc(1, sizeof(list_t));
+
     // Actually forward the data
     while(true) {
         struct timeval timeout;
@@ -208,7 +211,22 @@ int main(int argc, char *argv[]) {
                     case DATA_FLAG:
                         {
                             data_message_t *data = message->body->data;
-                            send(client_connection, (void *) data->payload, data->message_size, 0);
+
+                            if(client_connection < 0) {
+                                list_t_add(message_buffer, message);
+                            } else {
+                                // Clear out the sent buffer if one is present
+                                while(message_buffer->head) {
+                                    message_t *queued = list_t_pop(message_buffer);
+                                    data_message_t *data_in_queue = queued->body->data;
+                                    send(client_connection, (void *) data_in_queue->payload,
+                                            data_in_queue->message_size, 0);
+                                }
+
+                                // Send the current message
+                                send(client_connection, (void *) data->payload, data->message_size, 0);
+                            }
+
                             break;
                         }
                     case CONNECTION_FLAG:
