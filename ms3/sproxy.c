@@ -137,8 +137,6 @@ int main(int argc, char *argv[]) {
 
     // Set up the arguments
     int max_fd = (telnet_sock > cproxy_connection) ? telnet_sock : cproxy_connection;
-    struct timeval timeout;
-    timeout.tv_sec = 1;
     int rv;
 
     // Create the buffer
@@ -152,6 +150,9 @@ int main(int argc, char *argv[]) {
 
     // Main connection loop
     while(true) {
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
         FD_ZERO(&socket_fds);
         FD_SET(telnet_sock, &socket_fds);
         FD_SET(cproxy_connection, &socket_fds);
@@ -172,7 +173,7 @@ int main(int argc, char *argv[]) {
             if(recorded_timeouts >= TIMEOUT_THRESH) {
                 // We've experienced a certain number of timeouts,
                 // TODO: halt the connection
-                fprintf(stderr, "Connection timeout detected from cproxy.\n");
+                fprintf(stderr, "Connection timeout detected from cproxy (#%d).\n", recorded_timeouts);
             }
         } else {
             // Determine which socket (or both) has data waiting
@@ -195,6 +196,7 @@ int main(int argc, char *argv[]) {
 
             if(FD_ISSET(cproxy_connection, &socket_fds)) {
                 // Recieve from the client
+                printf("Reading from cproxy connection\n");
                 message_t *message = read_message(cproxy_connection);
 
                 if(!message) {

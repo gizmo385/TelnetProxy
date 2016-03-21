@@ -131,8 +131,6 @@ int main(int argc, char *argv[]) {
 
     // Set up the arguments
     int max_fd = (server_sock > listen_sock) ? server_sock : listen_sock;
-    struct timeval timeout;
-    timeout.tv_sec = 1;
     int rv;
 
     // Create the buffer
@@ -143,16 +141,25 @@ int main(int argc, char *argv[]) {
 
     // Actually forward the data
     while(true) {
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
         FD_ZERO(&socket_fds);
-        FD_SET(server_sock, &socket_fds);
 
-        if(client_connection < 0) {
-            FD_SET(listen_sock, &socket_fds);
-        } else {
+        if(server_sock > 0) {
+            FD_SET(server_sock, &socket_fds);
+        }
+
+        if(client_connection > 0) {
             FD_SET(client_connection, &socket_fds);
+            max_fd = (server_sock > client_connection) ? server_sock : client_connection;
+        } else {
+            FD_SET(listen_sock, &socket_fds);
+            max_fd = (server_sock > listen_sock) ? server_sock : listen_sock;
         }
 
         rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
+        printf("rv = %d\n", rv);
 
         // Determine the value of rv
         if(rv == -1) {
@@ -179,7 +186,10 @@ int main(int argc, char *argv[]) {
                     close(server_sock);
                     close(client_connection);
                     exit(errno);
-                }
+                } else if(client_connection == 0){
+                    fprintf(stderr, "Client connection messed up\n");
+                    exit(errno);
+                } else continue;
             }
 
             // If server_sock has a message, then the server has sent a message to the client
