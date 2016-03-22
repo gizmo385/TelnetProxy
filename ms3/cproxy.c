@@ -75,24 +75,11 @@ int main(int argc, char *argv[]) {
     char *server_hostname = argv[2];
     int server_port = atoi(argv[3]);
 
-    // Connnect to server
-    int server_sock = socket(PF_INET, SOCK_STREAM, 0);
-    if(server_sock == -1) {
-        fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
-        close(server_sock);
-        exit(errno);
-    }
-
-    set_socket_opts(server_sock);
-    int telnet_conn = -1;
-    connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
-
     // Setup the socket to listen for telnet connection
     int listen_sock = socket(PF_INET, SOCK_STREAM, 0);
 
     if(listen_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
-        close(server_sock);
         close(listen_sock);
         exit(errno);
     }
@@ -110,7 +97,6 @@ int main(int argc, char *argv[]) {
     if(bindfd == -1){
         fprintf(stderr, "Error: Binding cproxy listen socket failed\n");
         close(listen_sock);
-        close(server_sock);
         exit(errno);
     }
 
@@ -119,12 +105,12 @@ int main(int argc, char *argv[]) {
     if(listen_rt == -1){
         fprintf(stderr, "Error: Listen call failed\n");
         close(listen_sock);
-        close(server_sock);
         exit(errno);
     }
 
     socklen_t len;
     int client_connection = -1;
+    int server_sock = -1;
 
     // Set up our descriptor set for select
     fd_set socket_fds;
@@ -193,7 +179,20 @@ int main(int argc, char *argv[]) {
                 } else if(client_connection == 0){
                     fprintf(stderr, "Client connection messed up\n");
                     exit(errno);
-                } else continue;
+                } else {
+		    // Connnect to sproxy when we have a client
+		    server_sock = socket(PF_INET, SOCK_STREAM, 0);
+		    if(server_sock == -1) {
+			fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
+			close(server_sock);
+			exit(errno);
+		    }
+
+		    set_socket_opts(server_sock);
+		    int telnet_conn = -1;
+		    connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
+		    continue;
+		}
             }
 
             // If server_sock has a message, then the server has sent a message to the client
