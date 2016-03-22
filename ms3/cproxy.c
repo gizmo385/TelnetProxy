@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     // Connnect to server
     int server_sock = socket(PF_INET, SOCK_STREAM, 0);
     if(server_sock == -1) {
-        fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
+        fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
         close(server_sock);
         exit(errno);
     }
@@ -87,11 +87,11 @@ int main(int argc, char *argv[]) {
     int telnet_conn = -1;
     connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
 
-    // Setup the socket to listen for cproxy
+    // Setup the socket to listen for telnet connection
     int listen_sock = socket(PF_INET, SOCK_STREAM, 0);
 
     if(listen_sock == -1) {
-        fprintf(stderr, "ERROR: Could not create socket for cproxy!\n");
+        fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
         close(server_sock);
         close(listen_sock);
         exit(errno);
