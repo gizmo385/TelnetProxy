@@ -257,6 +257,8 @@ int main(int argc, char *argv[]) {
                 if((last_heartbeat_sent.tv_sec - last_heartbeat_recieved.tv_sec >= 3)) {
                     disconnect_reconnect(&server_sock, listen_sock, client_connection,
                             server_hostname, server_port);
+					gettimeofday(&last_heartbeat_recieved, NULL);
+					gettimeofday(&last_heartbeat_sent, NULL);
                 }
             }
         } else {
