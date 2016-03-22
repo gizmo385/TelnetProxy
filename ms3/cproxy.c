@@ -230,8 +230,8 @@ int main(int argc, char *argv[]) {
         if(client_connection > 0) {
             FD_SET(client_connection, &socket_fds);
             max_fd = (server_sock > client_connection) ? server_sock : client_connection;
-        } 
-        
+        }
+
 		rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
 
         // Determine the value of rv
@@ -300,6 +300,9 @@ int main(int argc, char *argv[]) {
 
                             break;
                         }
+                    case HEARTBEAT_FLAG:
+                        gettimeofday(&last_heartbeat_recieved, NULL);
+                        break;
                     default:
                         // TODO HANDLE ERROR
                         break;
