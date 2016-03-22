@@ -191,6 +191,10 @@ int main(int argc, char *argv[]) {
                     set_socket_opts(server_sock);
                     int telnet_conn = -1;
                     connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
+
+                    // Send a connection message to the server noting that it is a new session
+                    message_t *conn_message = new_conn_message(NEW_SESSION);
+                    send_message(server_sock, conn_message);
                     continue;
                 }
             }
@@ -201,13 +205,32 @@ int main(int argc, char *argv[]) {
                 message_t *message = read_message(server_sock);
 
                 if(!message) {
+                    // Close the current connection
+                    printf("Disconnect detected.\n");
+                    close(server_sock);
+                    server_sock = -1;
+
+                    // Re-establish the connection
+                    printf("Attempting to re-establish connection\n");
+                    server_sock = socket(PF_INET, SOCK_STREAM, 0);
+                    if(server_sock == -1) {
+                        fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
+                        close(server_sock);
+                        exit(errno);
+                    }
+
+                    set_socket_opts(server_sock);
+                    int telnet_conn = -1;
+                    connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
+
+                    // Send a connection message to the server noting that it is a new session
+                    message_t *conn_message = new_conn_message(OLD_SESSION);
+                    send_message(server_sock, conn_message);
+                    printf("Successfully reconnected\n");
                     continue;
                 }
 
                 switch(message->message_flag) {
-                    case HEARTBEAT_FLAG:
-                        // TODO UPDATE TIMEOUT COUNTER
-                        break;
                     case DATA_FLAG:
                         {
                             data_message_t *data = message->body->data;
