@@ -169,6 +169,8 @@ int main(int argc, char *argv[]) {
 	            recorded_timeouts += 1;
             }
 
+			printf("Number of timeouts: %d ====\n", recorded_timeouts);
+
             if(recorded_timeouts >= TIMEOUT_THRESH) {
                 // We've experienced a certain number of timeouts, halt the connection
 				close(cproxy_connection);
@@ -226,7 +228,7 @@ int main(int argc, char *argv[]) {
                     list_t_add(message_buffer, message);
                 } else {
                     node_t *head = message_buffer->head;
-                    while(head) {
+                    while(message_buffer->head) {
                         message_t *queued = list_t_pop(message_buffer);
                         data_message_t *data_in_queue = queued->body->data;
 

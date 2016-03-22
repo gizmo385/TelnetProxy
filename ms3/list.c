@@ -15,7 +15,7 @@ void list_t_add(list_t *list, message_t *message) {
 }
 
 message_t *list_t_pop(list_t *list) {
-    if(!list) {
+    if(!list->head) {
         return NULL;
     } else {
         message_t *message = list->head->message;
@@ -25,7 +25,7 @@ message_t *list_t_pop(list_t *list) {
 }
 
 message_t* list_t_peek(list_t *list) {
-    if(!list) {
+    if(!list->head) {
         return NULL;
     } else {
         return list->head->message;
