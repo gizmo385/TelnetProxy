@@ -144,6 +144,7 @@ int main(int argc, char *argv[]) {
         } else {
             max_fd = -1;
         }
+
         if(cproxy_connection > 0){
             FD_SET(cproxy_connection, &socket_fds);
             max_fd = (max_fd > cproxy_connection) ? max_fd : cproxy_connection;
@@ -153,7 +154,6 @@ int main(int argc, char *argv[]) {
         }
 
         rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
-        printf("rv = %d\n", rv);
 
         // Determine the value of rv
         if(rv == -1) {
@@ -165,21 +165,21 @@ int main(int argc, char *argv[]) {
             exit(errno);
         } else if(rv == 0) {
             // Timeout: Increase the timeout counter
-			if(cproxy_connection > 0){
+            if(cproxy_connection > 0){
 	            recorded_timeouts += 1;
-			}
+            }
 
             if(recorded_timeouts >= TIMEOUT_THRESH) {
                 // We've experienced a certain number of timeouts, halt the connection
 				close(cproxy_connection);
 				cproxy_connection = -1;
                 fprintf(stderr, "Connection timeout detected from cproxy (#%d).\n", recorded_timeouts);
-				recorded_timeouts = 0;
+				/*recorded_timeouts = 0;*/
 				continue;
             }
         } else {
             // Determine which socket (or both) has data waiting
-            if(FD_ISSET(listen_sock, &socket_fds)){
+            if(FD_ISSET(listen_sock, &socket_fds)) {
                 cproxy_connection = accept(listen_sock, (struct sockaddr *)&server_addr, &len);
                 if(cproxy_connection < 0){
                     fprintf(stderr, "Error: connection accept failed\n");
@@ -206,6 +206,7 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
             }
+
             if(FD_ISSET(telnet_sock, &socket_fds)) {
                 // Recieve from telnet daemon
                 payload_length = read(telnet_sock, buf, BUFFER_SIZE);
@@ -265,6 +266,8 @@ int main(int argc, char *argv[]) {
                         }
                     case CONNECTION_FLAG:
                         // TODO RE-ESTABLISH CONNECTION THINGY
+                        printf("Recieved a connection message.\n");
+                        recorded_timeouts = 0;
                         break;
                     default:
                         // TODO HANDLE ERROR
