@@ -48,14 +48,10 @@ void send_message(int socket, message_t *message) {
                 conn_message_t *conn = message->body->conn;
 
                 // Convert the integer types
-                uint32_t seq_num = htonl((uint32_t) conn->seq_num);
-                uint32_t ack_num = htonl((uint32_t) conn->ack_num);
+                uint32_t new_session = htonl((uint32_t) conn->new_session);
 
                 // Send the actual data
-                send(socket, (void *) &seq_num, sizeof(seq_num), 0);
-                send(socket, (void *) &ack_num, sizeof(ack_num), 0);
-                send(socket, (void *) conn->old_ip, sizeof(char) * IP_SIZE, 0);
-                send(socket, (void *) conn->new_ip, sizeof(char) * IP_SIZE, 0);
+                send(socket, (void *) &new_session, sizeof(new_session), 0);
                 break;
             }
         default: // YOU REAL GOOFED
@@ -134,12 +130,9 @@ message_t *new_heartbeat_message() {
     return new_message_t(HEARTBEAT_FLAG, NULL);
 }
 
-message_t *new_conn_message(int seq_num, int ack_num, char *old_ip, char *new_ip) {
+message_t *new_conn_message(int new_session) {
     conn_message_t *conn = malloc(sizeof(conn_message_t));
-    conn->seq_num = seq_num;
-    conn->ack_num = ack_num;
-    conn->old_ip = old_ip;
-    conn->new_ip = new_ip;
+    conn->new_session = new_session;
 
     message_body_t *body = malloc(sizeof(message_body_t));
     body->conn = conn;
