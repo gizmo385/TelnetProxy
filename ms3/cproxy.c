@@ -150,7 +150,41 @@ int main(int argc, char *argv[]) {
     // Buffer for messages
     list_t *message_buffer = new_list_t();
 
-    // Actually forward the data
+	// Accept client connection
+	client_connection = accept(listen_sock, (struct sockaddr *)&listen_addr, &len);
+
+	if(client_connection < 0){
+		fprintf(stderr, "Error: connection accept failed\n");
+		close(listen_sock);
+		close(server_sock);
+		close(client_connection);
+		exit(errno);
+	} else if(client_connection == 0){
+		fprintf(stderr, "Client connection messed up\n");
+		close(listen_sock);
+		close(server_sock);
+		close(client_connection);
+		exit(errno);
+	} else {
+		// Connnect to sproxy when we have a client
+		server_sock = socket(PF_INET, SOCK_STREAM, 0);
+		if(server_sock == -1) {
+			fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
+			close(listen_sock);
+			close(server_sock);
+			exit(errno);
+		}
+	}
+
+	set_socket_opts(server_sock);
+	int telnet_conn = -1;
+	connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
+
+	// Send a connection message to the server noting that it is a new session
+	message_t *conn_message = new_conn_message(NEW_SESSION);
+	send_message(server_sock, conn_message);
+
+	// Actually forward the data
     while(true) {
         bzero(buf, BUFFER_SIZE);
         struct timeval timeout;
@@ -165,12 +199,9 @@ int main(int argc, char *argv[]) {
         if(client_connection > 0) {
             FD_SET(client_connection, &socket_fds);
             max_fd = (server_sock > client_connection) ? server_sock : client_connection;
-        } else {
-            FD_SET(listen_sock, &socket_fds);
-            max_fd = (server_sock > listen_sock) ? server_sock : listen_sock;
-        }
-
-        rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
+        } 
+        
+		rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
 
         // Determine the value of rv
         if(rv == -1) {
@@ -188,40 +219,6 @@ int main(int argc, char *argv[]) {
                 send_message(server_sock, heartbeat);
             }
         } else {
-            // If the listen socket has a message on it, the client is connecting
-            if(FD_ISSET(listen_sock, &socket_fds)) {
-                // Accept client connection
-                client_connection = accept(listen_sock, (struct sockaddr *)&listen_addr, &len);
-
-                if(client_connection < 0){
-                    fprintf(stderr, "Error: connection accept failed\n");
-                    close(listen_sock);
-                    close(server_sock);
-                    close(client_connection);
-                    exit(errno);
-                } else if(client_connection == 0){
-                    fprintf(stderr, "Client connection messed up\n");
-                    exit(errno);
-                } else {
-                    // Connnect to sproxy when we have a client
-                    server_sock = socket(PF_INET, SOCK_STREAM, 0);
-                    if(server_sock == -1) {
-                        fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
-                        close(server_sock);
-                        exit(errno);
-                    }
-
-                    set_socket_opts(server_sock);
-                    int telnet_conn = -1;
-                    connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
-
-                    // Send a connection message to the server noting that it is a new session
-                    message_t *conn_message = new_conn_message(NEW_SESSION);
-                    send_message(server_sock, conn_message);
-                    continue;
-                }
-            }
-
             // If server_sock has a message, then the server has sent a message to the client
             if(FD_ISSET(server_sock, &socket_fds)) {
                 // Receive from the server
@@ -239,6 +236,8 @@ int main(int argc, char *argv[]) {
                     if(server_sock == -1) {
                         fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
                         close(server_sock);
+						close(listen_sock);
+						close(client_connection);
                         exit(errno);
                     }
 
