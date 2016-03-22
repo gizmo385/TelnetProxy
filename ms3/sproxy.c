@@ -165,12 +165,17 @@ int main(int argc, char *argv[]) {
             exit(errno);
         } else if(rv == 0) {
             // Timeout: Increase the timeout counter
-            recorded_timeouts += 1;
+			if(cproxy_connection > 0){
+	            recorded_timeouts += 1;
+			}
 
             if(recorded_timeouts >= TIMEOUT_THRESH) {
-                // We've experienced a certain number of timeouts,
-                // TODO: halt the connection
+                // We've experienced a certain number of timeouts, halt the connection
+				close(cproxy_connection);
+				cproxy_connection = -1;
                 fprintf(stderr, "Connection timeout detected from cproxy (#%d).\n", recorded_timeouts);
+				recorded_timeouts = 0;
+				continue;
             }
         } else {
             // Determine which socket (or both) has data waiting
@@ -238,7 +243,10 @@ int main(int argc, char *argv[]) {
                 printf("Reading from cproxy connection\n");
                 message_t *message = read_message(cproxy_connection);
 
+				//if we read a message of size 0 from cproxy_connection, it has timed out
                 if(!message) {
+					close(cproxy_connection);
+					cproxy_connection = -1;
                     continue;
                 }
 
