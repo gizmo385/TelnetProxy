@@ -214,6 +214,8 @@ int main(int argc, char *argv[]) {
 
     struct timeval last_heartbeat_sent;
     struct timeval last_heartbeat_recieved;
+    gettimeofday(&last_heartbeat_sent, NULL);
+    gettimeofday(&last_heartbeat_recieved, NULL);
 
 	// Actually forward the data
     while(true) {
@@ -245,6 +247,7 @@ int main(int argc, char *argv[]) {
         } else if(rv == 0) {
             // Timeout: Send a heartbeat to the server
             if(server_sock > 0) {
+                // Send a heartbeat to the server
                 printf("Sending heartbeat to server (select timeout).\n");
                 gettimeofday(&last_heartbeat_sent, NULL);
                 message_t *heartbeat = new_heartbeat_message();

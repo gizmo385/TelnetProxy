@@ -12,6 +12,7 @@ sproxy.c -- Connects to the telnet daemon and listens for the cproxy connection
 #include <string.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
@@ -124,8 +125,10 @@ int main(int argc, char *argv[]) {
     // Length of the payload recieved
     int payload_length = -1;
 
-    // When timeouts reach a certain threshold, a disconnect is assumed
-    int recorded_timeouts = 0;
+    struct timeval last_heartbeat_sent;
+    struct timeval last_heartbeat_recieved;
+    gettimeofday(&last_heartbeat_sent, NULL);
+    gettimeofday(&last_heartbeat_recieved, NULL);
 
     // Buffer for messages
     list_t *message_buffer = new_list_t();
@@ -165,21 +168,31 @@ int main(int argc, char *argv[]) {
             exit(errno);
         } else if(rv == 0) {
             // Timeout: Increase the timeout counter
-            if(cproxy_connection > 0){
-	            recorded_timeouts += 1;
-            }
+            if(cproxy_connection > 0) {
+                // Send a heartbeat to the client
+                printf("Sending heartbeat to server.\n");
+                gettimeofday(&last_heartbeat_sent, NULL);
+                message_t *heartbeat = new_heartbeat_message();
+                send_message(cproxy_connection, heartbeat);
 
-			printf("Number of timeouts: %d ====\n", recorded_timeouts);
-
-            if(recorded_timeouts >= TIMEOUT_THRESH) {
-                // We've experienced a certain number of timeouts, halt the connection
-				close(cproxy_connection);
-				cproxy_connection = -1;
-                fprintf(stderr, "Connection timeout detected from cproxy (#%d).\n", recorded_timeouts);
-				/*recorded_timeouts = 0;*/
-				continue;
+                // If it's been more than 3 seconds since heartbeat, disconnect from cproxy
+                if((last_heartbeat_sent.tv_sec - last_heartbeat_recieved.tv_sec >= 3)) {
+                    close(cproxy_connection);
+                    cproxy_connection = -1;
+                    fprintf(stderr, "Connection timeout detected from cproxy.\n");
+                }
             }
         } else {
+            // Send a heartbeat if it's been at least 1 second
+            struct timeval current;
+            gettimeofday(&current, NULL);
+
+            if((current.tv_sec - last_heartbeat_sent.tv_sec >= 1)) {
+                gettimeofday(&last_heartbeat_sent, NULL);
+                message_t *heartbeat = new_heartbeat_message();
+                send_message(cproxy_connection, heartbeat);
+            }
+
             // Determine which socket (or both) has data waiting
             if(FD_ISSET(listen_sock, &socket_fds)) {
                 cproxy_connection = accept(listen_sock, (struct sockaddr *)&server_addr, &len);
@@ -227,7 +240,6 @@ int main(int argc, char *argv[]) {
                 if(cproxy_connection < 0) {
                     list_t_add(message_buffer, message);
                 } else {
-                    node_t *head = message_buffer->head;
                     while(message_buffer->head) {
                         message_t *queued = list_t_pop(message_buffer);
                         data_message_t *data_in_queue = queued->body->data;
@@ -255,13 +267,11 @@ int main(int argc, char *argv[]) {
 
                 switch(message->message_flag) {
                     case HEARTBEAT_FLAG:
-                        // We've recieved a heartbeat, so we can reset the timeout counter
-                        recorded_timeouts = 0;
+                        // We've recieved a heartbeat, so we can reset the timer
+                        gettimeofday(&last_heartbeat_recieved, NULL);
                         break;
                     case DATA_FLAG:
                         {
-                            // We've recieved a message, so we can reset the timeout counter
-                            recorded_timeouts = 0;
                             data_message_t *data = message->body->data;
                             send(telnet_sock, (void *) data->payload, data->message_size, 0);
                             break;
@@ -269,7 +279,6 @@ int main(int argc, char *argv[]) {
                     case CONNECTION_FLAG:
                         // TODO RE-ESTABLISH CONNECTION THINGY
                         printf("Recieved a connection message.\n");
-                        recorded_timeouts = 0;
                         break;
                     default:
                         // TODO HANDLE ERROR
