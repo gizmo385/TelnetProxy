@@ -145,10 +145,8 @@ message_t *new_data_message(int seq_num, int ack_num, int message_size, char *pa
     data->ack_num = ack_num;
     data->message_size = message_size;
 
-    char *payload_cpy = calloc(message_size, sizeof(char));
-    strncpy(payload_cpy, payload, message_size);
-
-    data->payload = payload_cpy;
+    data->payload = calloc(message_size, sizeof(char));
+    memcpy(data->payload, payload, message_size);
 
     message_body_t *body = calloc(1, sizeof(message_body_t));
     body->data = data;
