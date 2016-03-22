@@ -15,9 +15,12 @@ cproxy.c -- Connects to the server proxy and listens for a telnet connection
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <unistd.h>	//for closing the connection
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <errno.h>
@@ -48,7 +51,6 @@ void connect_to_server(int socket, char *server_hostname, int server_port, int *
         exit(errno);
     }
 
-
     // Create client_addr data structure and copy over address
     struct sockaddr_in client_addr;
     bzero((char *)&client_addr, sizeof(client_addr));
@@ -63,6 +65,25 @@ void connect_to_server(int socket, char *server_hostname, int server_port, int *
         fprintf(stderr, "ERROR: Connecting to sproxy failed!\n");
         exit(errno);
     }
+}
+
+char *get_ip_address() {
+    // Open up a dummy socket
+    int temp_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    // Get the IP for a particular interface (eth1)
+    struct ifreq ifr;
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name, "eth1", IFNAMSIZ - 1);
+    ioctl(temp_fd, SIOCGIFADDR, &ifr);
+
+    // Store the ip as a string
+    char *ip = inet_ntoa(((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr);
+
+    // Close our dummy port
+    close(temp_fd);
+
+    return ip;
 }
 
 int main(int argc, char *argv[]) {
@@ -107,6 +128,7 @@ int main(int argc, char *argv[]) {
         close(listen_sock);
         exit(errno);
     }
+    printf("Waiting for client...\n");
 
     socklen_t len;
     int client_connection = -1;
@@ -116,7 +138,7 @@ int main(int argc, char *argv[]) {
     fd_set socket_fds;
 
     // Set up the arguments
-    int max_fd = (server_sock > listen_sock) ? server_sock : listen_sock;
+    int max_fd = -1;
     int rv;
 
     // Create the buffer
@@ -149,7 +171,6 @@ int main(int argc, char *argv[]) {
         }
 
         rv = select(max_fd + 1, &socket_fds, NULL, NULL, &timeout);
-        printf("rv = %d\n", rv);
 
         // Determine the value of rv
         if(rv == -1) {
@@ -161,9 +182,11 @@ int main(int argc, char *argv[]) {
             exit(errno);
         } else if(rv == 0) {
             // Timeout: Send a heartbeat to the server
-            printf("Sending heartbeat to server.\n");
-            message_t *heartbeat = new_heartbeat_message();
-            send_message(server_sock, heartbeat);
+            if(server_sock > 0) {
+                printf("Sending heartbeat to server.\n");
+                message_t *heartbeat = new_heartbeat_message();
+                send_message(server_sock, heartbeat);
+            }
         } else {
             // If the listen socket has a message on it, the client is connecting
             if(FD_ISSET(listen_sock, &socket_fds)) {
@@ -252,9 +275,6 @@ int main(int argc, char *argv[]) {
 
                             break;
                         }
-                    case CONNECTION_FLAG:
-                        // TODO RE-ESTABLISH CONNECTION THINGY
-                        break;
                     default:
                         // TODO HANDLE ERROR
                         break;
@@ -267,6 +287,7 @@ int main(int argc, char *argv[]) {
                 payload_length = read(client_connection, buf, BUFFER_SIZE);
 
                 if(payload_length <= 0) {
+                    printf("Read payload from client_connection <= 0\n");
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
@@ -274,6 +295,7 @@ int main(int argc, char *argv[]) {
                 }
 
                 if((strcmp(buf, "exit") == 0) || (strcmp(buf, "logout") == 0)) {
+                    printf("Exiting.\n");
                     close(client_connection);
                     close(listen_sock);
                     close(server_sock);
