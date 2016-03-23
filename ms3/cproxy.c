@@ -29,6 +29,11 @@ cproxy.c -- Connects to the server proxy and listens for a telnet connection
 
 #define MAX_PENDING 5
 
+// The sockets involved in cproxy
+int server_sock = -1;
+int listen_sock = -1;
+int client_connection = -1;
+
 void set_socket_opts(int socket) {
     int enable = 1;
     if(setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
@@ -42,13 +47,20 @@ void set_socket_opts(int socket) {
     }
 }
 
-void connect_to_server(int socket, char *server_hostname, int server_port, int *connection) {
+void close_and_exit(int exit_code) {
+    close(client_connection);
+    close(listen_sock);
+    close(server_sock);
+    exit(exit_code);
+}
+
+void connect_to_server(char *server_hostname, int server_port, int *connection) {
     /* Connect to the server on specified port */
     struct hostent *hp = gethostbyname(server_hostname);
 
     if(!hp) {
         fprintf(stderr, "ERROR: Unknown host! (lolwut)\n");
-        exit(errno);
+        close_and_exit(errno);
     }
 
     // Create client_addr data structure and copy over address
@@ -59,11 +71,11 @@ void connect_to_server(int socket, char *server_hostname, int server_port, int *
     client_addr.sin_port = htons(server_port);
 
     // Open connection to the server
-    *connection = connect(socket, (struct sockaddr *)&client_addr, sizeof(client_addr));
+    *connection = connect(server_sock, (struct sockaddr *)&client_addr, sizeof(client_addr));
 
     if(*connection == -1){
         fprintf(stderr, "ERROR: Connecting to sproxy failed!\n");
-        exit(errno);
+        close_and_exit(errno);
     }
 }
 
@@ -86,30 +98,27 @@ char *get_ip_address() {
     return ip;
 }
 
-void disconnect_reconnect(int *server_sock, int listen, int client, char *host, int port) {
+void disconnect_reconnect(char *host, int port) {
     // Close the current connection
     printf("Disconnect detected.\n");
-    close(*server_sock);
-    *server_sock = -1;
+    close(server_sock);
+    server_sock = -1;
 
     // Re-establish the connection
     printf("Attempting to re-establish connection\n");
-    *server_sock = socket(PF_INET, SOCK_STREAM, 0);
-    if(*server_sock == -1) {
+    server_sock = socket(PF_INET, SOCK_STREAM, 0);
+    if(server_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
-        close(*server_sock);
-        close(listen);
-        close(client);
-        exit(errno);
+        close_and_exit(errno);
     }
 
-    set_socket_opts(*server_sock);
+    set_socket_opts(server_sock);
     int telnet_conn = -1;
-    connect_to_server(*server_sock, host, port, &telnet_conn);
+    connect_to_server(host, port, &telnet_conn);
 
     // Send a connection message to the server noting that it is a new session
     message_t *conn_message = new_conn_message(OLD_SESSION);
-    send_message(*server_sock, conn_message);
+    send_message(server_sock, conn_message);
     printf("Successfully reconnected\n");
 }
 
@@ -124,7 +133,7 @@ int main(int argc, char *argv[]) {
     int server_port = atoi(argv[3]);
 
     // Setup the socket to listen for telnet connection
-    int listen_sock = socket(PF_INET, SOCK_STREAM, 0);
+    listen_sock = socket(PF_INET, SOCK_STREAM, 0);
 
     if(listen_sock == -1) {
         fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
@@ -158,8 +167,6 @@ int main(int argc, char *argv[]) {
     printf("Waiting for client...\n");
 
     socklen_t len;
-    int client_connection = -1;
-    int server_sock = -1;
 
     // Set up our descriptor set for select
     fd_set socket_fds;
@@ -182,30 +189,22 @@ int main(int argc, char *argv[]) {
 
     if(client_connection < 0){
         fprintf(stderr, "Error: connection accept failed\n");
-        close(listen_sock);
-        close(server_sock);
-        close(client_connection);
-        exit(errno);
+        close_and_exit(errno);
     } else if(client_connection == 0){
         fprintf(stderr, "Client connection messed up\n");
-        close(listen_sock);
-        close(server_sock);
-        close(client_connection);
-        exit(errno);
+        close_and_exit(errno);
     } else {
         // Connnect to sproxy when we have a client
         server_sock = socket(PF_INET, SOCK_STREAM, 0);
         if(server_sock == -1) {
             fprintf(stderr, "ERROR: Could not create socket for server connection!\n");
-            close(listen_sock);
-            close(server_sock);
-            exit(errno);
+            close_and_exit(errno);
         }
     }
 
     set_socket_opts(server_sock);
     int telnet_conn = -1;
-    connect_to_server(server_sock, server_hostname, server_port, &telnet_conn);
+    connect_to_server(server_hostname, server_port, &telnet_conn);
 
     // Send a connection message to the server noting that it is a new session
     message_t *conn_message = new_conn_message(NEW_SESSION);
@@ -239,10 +238,7 @@ int main(int argc, char *argv[]) {
         if(rv == -1) {
             // This means that an error occured
             fprintf(stderr, "ERROR: Issue while selecting socket\n");
-            close(server_sock);
-            close(client_connection);
-            close(listen_sock);
-            exit(errno);
+            close_and_exit(errno);
         } else if(rv == 0) {
             // Timeout: Send a heartbeat to the server
             if(server_sock > 0) {
@@ -254,8 +250,7 @@ int main(int argc, char *argv[]) {
 
                 // If it's been more than 3 seconds, we've timed out
                 if((last_heartbeat_sent.tv_sec - last_heartbeat_recieved.tv_sec >= 3)) {
-                    disconnect_reconnect(&server_sock, listen_sock, client_connection,
-                            server_hostname, server_port);
+                    disconnect_reconnect(server_hostname, server_port);
                     gettimeofday(&last_heartbeat_recieved, NULL);
                     gettimeofday(&last_heartbeat_sent, NULL);
                 }
@@ -277,8 +272,7 @@ int main(int argc, char *argv[]) {
                 message_t *message = read_message(server_sock);
 
                 if(!message) {
-                    disconnect_reconnect(&server_sock, listen_sock, client_connection,
-                            server_hostname, server_port);
+                    disconnect_reconnect(server_hostname, server_port);
                     continue;
                 }
 
@@ -299,7 +293,7 @@ int main(int argc, char *argv[]) {
                                 }
 
                                 // Send the current message
-                                send(client_connection, (void *) data->payload, data->message_size, 0);
+                                send(client_connection, data->payload, data->message_size, 0);
                             }
 
                             break;
@@ -320,17 +314,13 @@ int main(int argc, char *argv[]) {
 
                 if(payload_length <= 0) {
                     printf("Read payload from client_connection <= 0\n");
-                    close(client_connection);
-                    close(listen_sock);
-                    close(server_sock);
+                    close_and_exit(0);
                     break;
                 }
 
                 if((strcmp(buf, "exit") == 0) || (strcmp(buf, "logout") == 0)) {
                     printf("Exiting.\n");
-                    close(client_connection);
-                    close(listen_sock);
-                    close(server_sock);
+                    close_and_exit(0);
                     break;
                 }
 
@@ -342,7 +332,5 @@ int main(int argc, char *argv[]) {
     }
 
     // Close our connections
-    close(client_connection);
-    close(listen_sock);
-    close(server_sock);
+    close_and_exit(0);
 }
