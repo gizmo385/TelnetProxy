@@ -21,4 +21,4 @@ todo:
 
 # Remove object files and executables
 clean:
-	$(RM) cproxy sproxy *.o
+	$(RM) cproxy sproxy *.o *.gch
