@@ -240,20 +240,8 @@ int main(int argc, char *argv[]) {
                 // Write to the client
                 // TODO: REPLACE 0/0 with seq/ack
                 message_t *message = new_data_message(0, 0, payload_length, buf);
-
-                if(cproxy_connection < 0) {
-                    list_t_add(message_buffer, message);
-                } else {
-                    while(message_buffer->head) {
-                        message_t *queued = list_t_pop(message_buffer);
-                        data_message_t *data_in_queue = queued->body->data;
-
-                        if(data_in_queue) {
-                            send(cproxy_connection, (void *) data_in_queue->payload,
-                                    data_in_queue->message_size, 0);
-                        }
-                    }
-                    send_message(cproxy_connection, message);
+                list_t_add(message_buffer, message); // Buffer this until we get an ack
+                send_message(cproxy_connection, message);
                 }
             }
 

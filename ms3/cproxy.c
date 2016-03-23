@@ -280,21 +280,7 @@ int main(int argc, char *argv[]) {
                     case DATA_FLAG:
                         {
                             data_message_t *data = message->body->data;
-
-                            if(client_connection < 0) {
-                                list_t_add(message_buffer, message);
-                            } else {
-                                // Clear out the sent buffer if one is present
-                                while(message_buffer->head) {
-                                    message_t *queued = list_t_pop(message_buffer);
-                                    data_message_t *data_in_queue = queued->body->data;
-                                    send(client_connection, (void *) data_in_queue->payload,
-                                            data_in_queue->message_size, 0);
-                                }
-
-                                // Send the current message
-                                send(client_connection, data->payload, data->message_size, 0);
-                            }
+                            send(client_connection, data->payload, data->message_size, 0);
 
                             break;
                         }
@@ -326,6 +312,7 @@ int main(int argc, char *argv[]) {
 
                 // Write to the server
                 message_t *message = new_data_message(0, 0, payload_length, buf);
+                list_t_add(message_buffer, message); // Buffer this until we get an ack
                 send_message(server_sock, message);
             }
         }
