@@ -207,23 +207,23 @@ int main(int argc, char *argv[]) {
                     exit(errno);
                 } else {
                     // Connnect to telnet if it doesn't exist yet
-					if(telnet_sock < 0){
-						telnet_sock = socket(PF_INET, SOCK_STREAM, 0);
-						if(telnet_sock == -1) {
-							fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
-							close(telnet_sock);
-							exit(errno);
-						}
+                    if(telnet_sock < 0){
+                        telnet_sock = socket(PF_INET, SOCK_STREAM, 0);
+                        if(telnet_sock == -1) {
+                            fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
+                            close(telnet_sock);
+                            exit(errno);
+                        }
 
-						set_socket_opts(telnet_sock);
-						int telnet_conn = -1;
+                        set_socket_opts(telnet_sock);
+                        int telnet_conn = -1;
 
-						connect_to_telnet(telnet_sock, &telnet_conn);
-						continue;
-					}
+                        connect_to_telnet(telnet_sock, &telnet_conn);
+                        continue;
+                    }
                 }
-				gettimeofday(&last_heartbeat_recieved, NULL);
-				gettimeofday(&last_heartbeat_sent, NULL);
+                gettimeofday(&last_heartbeat_recieved, NULL);
+                gettimeofday(&last_heartbeat_sent, NULL);
             }
 
             if(FD_ISSET(telnet_sock, &socket_fds)) {
@@ -262,10 +262,10 @@ int main(int argc, char *argv[]) {
                 printf("Reading from cproxy connection\n");
                 message_t *message = read_message(cproxy_connection);
 
-				//if we read a message of size 0 from cproxy_connection, it has timed out
+                //if we read a message of size 0 from cproxy_connection, it has timed out
                 if(!message) {
-					close(cproxy_connection);
-					cproxy_connection = -1;
+                    close(cproxy_connection);
+                    cproxy_connection = -1;
                     continue;
                 }
 
