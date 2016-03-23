@@ -242,7 +242,6 @@ int main(int argc, char *argv[]) {
                 message_t *message = new_data_message(0, 0, payload_length, buf);
                 list_t_add(message_buffer, message); // Buffer this until we get an ack
                 send_message(cproxy_connection, message);
-                }
             }
 
             if(FD_ISSET(cproxy_connection, &socket_fds)) {
