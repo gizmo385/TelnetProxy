@@ -81,7 +81,6 @@ void connect_to_server(char *server_hostname, int server_port, int *connection) 
     *connection = connect(server_sock, (struct sockaddr *) &client_addr, sizeof(client_addr));
 
     if(*connection == -1){
-        fprintf(stderr, "ERROR: Connecting to sproxy failed!\n");
         close_and_exit(errno);
     }
 }
