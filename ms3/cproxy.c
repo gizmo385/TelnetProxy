@@ -6,7 +6,7 @@ Authors: Chris Chapline and Helen Jones
 Due Date: Wednesday, February 24th
 
 cproxy.c -- Connects to the server proxy and listens for a telnet connection
-*/
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -28,11 +28,18 @@ cproxy.c -- Connects to the server proxy and listens for a telnet connection
 #include "list.h"
 
 #define MAX_PENDING 5
+#define INIT_SEQ_NUM	1
+
 
 // The sockets involved in cproxy
 int server_sock = -1;
 int listen_sock = -1;
 int client_connection = -1;
+
+//the sliding window state vars
+int expected_ack = INIT_SEQ_NUM;
+int current_seq_num = INIT_SEQ_NUM;
+int last_mess_recv = -1;
 
 void set_socket_opts(int socket) {
     int enable = 1;
@@ -71,7 +78,7 @@ void connect_to_server(char *server_hostname, int server_port, int *connection) 
     client_addr.sin_port = htons(server_port);
 
     // Open connection to the server
-    *connection = connect(server_sock, (struct sockaddr *)&client_addr, sizeof(client_addr));
+    *connection = connect(server_sock, (struct sockaddr *) &client_addr, sizeof(client_addr));
 
     if(*connection == -1){
         fprintf(stderr, "ERROR: Connecting to sproxy failed!\n");
@@ -117,7 +124,7 @@ void disconnect_reconnect(char *host, int port) {
     connect_to_server(host, port, &telnet_conn);
 
     // Send a connection message to the server noting that it is a new session
-    message_t *conn_message = new_conn_message(OLD_SESSION);
+    message_t *conn_message = new_conn_message(last_mess_recv, OLD_SESSION);
     send_message(server_sock, conn_message);
     printf("Successfully reconnected\n");
 }
@@ -207,7 +214,7 @@ int main(int argc, char *argv[]) {
     connect_to_server(server_hostname, server_port, &telnet_conn);
 
     // Send a connection message to the server noting that it is a new session
-    message_t *conn_message = new_conn_message(NEW_SESSION);
+    message_t *conn_message = new_conn_message(INIT_SEQ_NUM, NEW_SESSION);
     send_message(server_sock, conn_message);
 
     struct timeval last_heartbeat_sent;
@@ -280,17 +287,65 @@ int main(int argc, char *argv[]) {
                     case DATA_FLAG:
                         {
                             data_message_t *data = message->body->data;
-                            send(client_connection, data->payload, data->message_size, 0);
+                            int message_seq_num = data->seq_num;
+                            printf("Received data with seq %d\n", message_seq_num);
 
+                            if(message_seq_num == last_mess_recv) {
+                                // Acknowledge the message that we just received
+                                message_t *ack = new_ack_message(message_seq_num, current_seq_num);
+                                send_message(server_sock, ack);
+
+                                // Retransmit any old messages
+                                retransmit_messages(server_sock, message_buffer);
+
+                                // Forwarding the message to the client bc it's legit
+                                send(client_connection, data->payload, data->message_size, 0);
+
+                                // Increment the number of messages we have received
+                                last_mess_recv++;
+                            } else {
+                                printf("Dropping out of order message with seq #%d, expected #%d\n",
+                                        message_seq_num, last_mess_recv);
+                            }
                             break;
                         }
                     case HEARTBEAT_FLAG:
                         gettimeofday(&last_heartbeat_recieved, NULL);
                         break;
+                    case ACK_FLAG:
+                        {
+                            data_message_t *data = message->body->data;
+
+                            int message_seq_num = data->seq_num;
+                            printf("Received ack: expected %d, got %d\n", expected_ack,
+                                    message_seq_num);
+
+                            if(expected_ack >= message_seq_num) {
+                                expected_ack = message_seq_num + 1;
+                                remove_messages(message_buffer, message_seq_num);
+                            }
+                            break;
+                        }
+                    case CONNECTION_FLAG:
+                        {
+                            printf("Received a connection message.\n");
+                            conn_message_t *conn = message->body->conn;
+
+                            if(conn->new_session == NEW_SESSION) {
+                                last_mess_recv = conn->last_mess_recv;
+                                printf("Initializing last_mess_recv = %d\n", last_mess_recv);
+                            } else {
+                                remove_messages(message_buffer, conn->last_mess_recv);
+                                retransmit_all_messages(server_sock, message_buffer);
+                            }
+
+                            break;
+                        }
                     default:
                         // TODO HANDLE ERROR
                         break;
                 }
+
             }
 
             // If client_connection has a message, then client is sending something to the server
@@ -311,9 +366,13 @@ int main(int argc, char *argv[]) {
                 }
 
                 // Write to the server
-                message_t *message = new_data_message(0, 0, payload_length, buf);
+                message_t *message = new_data_message(current_seq_num, expected_ack, payload_length,
+                        buf);
                 list_t_add(message_buffer, message); // Buffer this until we get an ack
                 send_message(server_sock, message);
+
+                // Increment our seq num
+                current_seq_num++;
             }
         }
     }

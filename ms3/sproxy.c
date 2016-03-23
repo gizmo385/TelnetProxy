@@ -26,6 +26,12 @@ sproxy.c -- Connects to the telnet daemon and listens for the cproxy connection
 
 #define TELNET_PORT 23
 #define MAX_PENDING 5
+#define INIT_SEQ_NUM 1000
+
+// Sliding window state vars
+int expected_ack = INIT_SEQ_NUM;
+int current_seq_num = INIT_SEQ_NUM;
+int last_mess_recv = -1;
 
 void set_socket_opts(int socket) {
     int enable = 1;
@@ -48,7 +54,6 @@ void connect_to_telnet(int socket, int *connection) {
         fprintf(stderr, "ERROR: Unknown host! (lolwut)\n");
         exit(errno);
     }
-
 
     // Create client_addr data structure and copy over address
     struct sockaddr_in telnet_client_addr;
@@ -148,7 +153,7 @@ int main(int argc, char *argv[]) {
             max_fd = -1;
         }
 
-        if(cproxy_connection > 0){
+        if(cproxy_connection > 0) {
             FD_SET(cproxy_connection, &socket_fds);
             max_fd = (max_fd > cproxy_connection) ? max_fd : cproxy_connection;
         } else {
@@ -179,7 +184,7 @@ int main(int argc, char *argv[]) {
                 if((last_heartbeat_sent.tv_sec - last_heartbeat_recieved.tv_sec >= 3)) {
                     close(cproxy_connection);
                     cproxy_connection = -1;
-                    fprintf(stderr, "Connection timeout detected from cproxy.\n");
+                   fprintf(stderr, "Connection timeout detected from cproxy.\n");
                 }
             }
         } else {
@@ -196,6 +201,7 @@ int main(int argc, char *argv[]) {
             // Determine which socket (or both) has data waiting
             if(FD_ISSET(listen_sock, &socket_fds)) {
                 cproxy_connection = accept(listen_sock, (struct sockaddr *)&server_addr, &len);
+
                 if(cproxy_connection < 0){
                     fprintf(stderr, "Error: connection accept failed\n");
                     close(listen_sock);
@@ -207,7 +213,7 @@ int main(int argc, char *argv[]) {
                     exit(errno);
                 } else {
                     // Connnect to telnet if it doesn't exist yet
-                    if(telnet_sock < 0){
+                    if(telnet_sock < 0) {
                         telnet_sock = socket(PF_INET, SOCK_STREAM, 0);
                         if(telnet_sock == -1) {
                             fprintf(stderr, "ERROR: Could not create socket for telnet!\n");
@@ -219,11 +225,20 @@ int main(int argc, char *argv[]) {
                         int telnet_conn = -1;
 
                         connect_to_telnet(telnet_sock, &telnet_conn);
+                        message_t *conn_message = new_conn_message(current_seq_num, NEW_SESSION);
+                        send_message(cproxy_connection, conn_message);
                         continue;
                     }
+
+                    // Send a connection message
+                    message_t *conn_message = new_conn_message(last_mess_recv, OLD_SESSION);
+                    send_message(cproxy_connection, conn_message);
+
+                    // Reset the heartbeats after reconnection
+                    gettimeofday(&last_heartbeat_recieved, NULL);
+                    gettimeofday(&last_heartbeat_sent, NULL);
+                    continue;
                 }
-                gettimeofday(&last_heartbeat_recieved, NULL);
-                gettimeofday(&last_heartbeat_sent, NULL);
             }
 
             if(FD_ISSET(telnet_sock, &socket_fds)) {
@@ -238,10 +253,13 @@ int main(int argc, char *argv[]) {
                 }
 
                 // Write to the client
-                // TODO: REPLACE 0/0 with seq/ack
-                message_t *message = new_data_message(0, 0, payload_length, buf);
+                message_t *message = new_data_message(current_seq_num, expected_ack, payload_length,
+                        buf);
                 list_t_add(message_buffer, message); // Buffer this until we get an ack
                 send_message(cproxy_connection, message);
+
+                // Increment seq num
+                current_seq_num++;
             }
 
             if(FD_ISSET(cproxy_connection, &socket_fds)) {
@@ -264,13 +282,56 @@ int main(int argc, char *argv[]) {
                     case DATA_FLAG:
                         {
                             data_message_t *data = message->body->data;
-                            send(telnet_sock, (void *) data->payload, data->message_size, 0);
+                            int message_seq_num = data->seq_num;
+                            printf("Received data with seq %d\n", message_seq_num);
+
+                            if(message_seq_num == last_mess_recv) {
+                                // Acknowledge the message that we just received
+                                message_t *ack = new_ack_message(message_seq_num, current_seq_num);
+                                send_message(cproxy_connection, ack);
+
+                                // Retransmit any old messages
+                                retransmit_messages(cproxy_connection, message_buffer);
+
+                                //forwarding the message to the telnet bc it's legit
+                                send(telnet_sock, data->payload, data->message_size, 0);
+
+                                last_mess_recv++;
+                            } else {
+                                printf("Dropping out of order message with seq #%d, expected #%d\n",
+                                        message_seq_num, last_mess_recv);
+                            }
+                            break;
+                        }
+                    case ACK_FLAG:
+                        {
+                            data_message_t *data = message->body->data;
+
+                            int message_seq_num = data->seq_num;
+                            printf("Received ack: expected %d, got %d\n", expected_ack,
+                                    message_seq_num);
+
+                            if(expected_ack >= message_seq_num) {
+                                expected_ack = message_seq_num + 1;
+                                remove_messages(message_buffer, message_seq_num);
+                            }
                             break;
                         }
                     case CONNECTION_FLAG:
-                        // TODO RE-ESTABLISH CONNECTION THINGY
-                        printf("Recieved a connection message.\n");
-                        break;
+                        {
+                            printf("Recieved a connection message.\n");
+                            conn_message_t *conn = message->body->conn;
+
+                            if(conn->new_session) {
+                                last_mess_recv = conn->last_mess_recv;
+                                printf("Initializing last_mess_recv = %d\n", last_mess_recv);
+                            } else {
+                                remove_messages(message_buffer, conn->last_mess_recv);
+                                retransmit_all_messages(cproxy_connection, message_buffer);
+                            }
+
+                            break;
+                        }
                     default:
                         // TODO HANDLE ERROR
                         break;

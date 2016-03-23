@@ -11,6 +11,7 @@
 
 #include "protocol.h"
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#define MAX_WINDOW_SIZE	50
 
 void send_message(int socket, message_t *message) {
 
@@ -49,11 +50,26 @@ void send_message(int socket, message_t *message) {
 
                 // Convert the integer types
                 uint32_t new_session = htonl((uint32_t) conn->new_session);
+                uint32_t last_mess_recv = htonl((uint32_t) conn->last_mess_recv);
 
                 // Send the actual data
                 send(socket, (void *) &new_session, sizeof(new_session), 0);
+                send(socket, (void *) &last_mess_recv, sizeof(last_mess_recv), 0);
                 break;
             }
+		case ACK_FLAG:
+			{
+				data_message_t *data = message->body->data;
+                // Convert the integer types
+                uint32_t seq_num = htonl((uint32_t) data->seq_num);
+                uint32_t ack_num = htonl((uint32_t) data->ack_num);
+
+				// Send the actual data
+                send(socket, (void *) &seq_num, sizeof(seq_num), 0);
+                send(socket, (void *) &ack_num, sizeof(ack_num), 0);
+
+				break;
+			}
         default: // YOU REAL GOOFED
             fprintf(stderr, "%d is not a valid message flag, ya doofus\n", message->message_flag);
             break;
@@ -78,14 +94,18 @@ message_t *read_message(int socket) {
             break;
         case CONNECTION_FLAG:
             {
-                uint32_t new_session;
+                uint32_t new_session, last_mess_recv;
                 result = read(socket, (char *) &new_session, sizeof(uint32_t));
                 new_session = ntohl(new_session);
                 if(result <= 0) return NULL;
 
+                result = read(socket, (char *) &last_mess_recv, sizeof(uint32_t));
+                last_mess_recv = ntohl(last_mess_recv);
+                if(result <= 0) return NULL;
+
                 printf("read_message(conn_message) --> %d\n", result);
 
-                return new_conn_message(new_session);
+                return new_conn_message(last_mess_recv, new_session);
                 break;
             }
         case DATA_FLAG:
@@ -112,6 +132,22 @@ message_t *read_message(int socket) {
                 return new_data_message(seq_num, ack_num, message_size, payload);
                 break;
             }
+		case ACK_FLAG:
+			{
+                uint32_t seq_num, ack_num;
+
+                result = read(socket, (char *) &seq_num, sizeof(uint32_t));
+                if(result <= 0) return NULL;
+
+                result = read(socket, (char *) &ack_num, sizeof(uint32_t));
+                if(result <= 0) return NULL;
+
+                seq_num = ntohl(seq_num);
+                ack_num = ntohl(ack_num);
+
+                return new_ack_message(seq_num, ack_num);
+				break;
+			}
         default:
             fprintf(stderr, "%d is not a readable message flag to read from %d!\n", message_flag,
                     socket);
@@ -132,9 +168,10 @@ message_t *new_heartbeat_message() {
     return new_message_t(HEARTBEAT_FLAG, NULL);
 }
 
-message_t *new_conn_message(int new_session) {
+message_t *new_conn_message(int last_mess_recv, int new_session) {
     conn_message_t *conn = malloc(sizeof(conn_message_t));
     conn->new_session = new_session;
+	conn->last_mess_recv = last_mess_recv;
 
     message_body_t *body = malloc(sizeof(message_body_t));
     body->conn = conn;
@@ -155,4 +192,15 @@ message_t *new_data_message(int seq_num, int ack_num, int message_size, char *pa
     body->data = data;
 
     return new_message_t(DATA_FLAG, body);
+}
+
+message_t *new_ack_message(int seq_num, int ack_num){
+    data_message_t *data = calloc(1, sizeof(data_message_t));
+    data->seq_num = seq_num;
+    data->ack_num = ack_num;
+
+	message_body_t *body = calloc(1, sizeof(message_body_t));
+    body->data = data;
+
+    return new_message_t(ACK_FLAG, body);
 }
