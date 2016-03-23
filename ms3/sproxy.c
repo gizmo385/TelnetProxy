@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
                             printf("Recieved a connection message.\n");
                             conn_message_t *conn = message->body->conn;
 
-                            if(conn->new_session) {
+                            if(conn->new_session == NEW_SESSION) {
                                 last_mess_recv = conn->last_mess_recv;
                                 printf("Initializing last_mess_recv = %d\n", last_mess_recv);
                             } else {

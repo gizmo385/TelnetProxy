@@ -76,13 +76,28 @@ void send_message(int socket, message_t *message) {
     }
 }
 
-void safe_read(int socket, char *buffer, size_t size) {
-    // TODO: Ensure complete read
+int safe_read(int socket, char *buffer, int size) {
+    int bytes_read = 0;
+    int temp_read = 0;
+
+    while((size - bytes_read) > 0) {
+        temp_read = read(socket, (buffer + bytes_read), (size - bytes_read));
+
+        if(temp_read <= 0) {
+            return temp_read;
+        } else {
+            bytes_read += temp_read;
+            printf("Read %d bytes (%d total), %d remain to read\n", temp_read, bytes_read,
+                    (size - bytes_read));
+        }
+    }
+
+    return bytes_read;
 }
 
 message_t *read_message(int socket) {
     uint32_t n_message_flag;
-    int result = read(socket, (char *) &n_message_flag, sizeof(uint32_t));
+    int result = safe_read(socket, (char *) &n_message_flag, sizeof(uint32_t));
     if(result == 0) return NULL;
     int message_flag = ntohl(n_message_flag);
 
@@ -95,11 +110,11 @@ message_t *read_message(int socket) {
         case CONNECTION_FLAG:
             {
                 uint32_t new_session, last_mess_recv;
-                result = read(socket, (char *) &new_session, sizeof(uint32_t));
+                result = safe_read(socket, (char *) &new_session, sizeof(uint32_t));
                 new_session = ntohl(new_session);
                 if(result <= 0) return NULL;
 
-                result = read(socket, (char *) &last_mess_recv, sizeof(uint32_t));
+                result = safe_read(socket, (char *) &last_mess_recv, sizeof(uint32_t));
                 last_mess_recv = ntohl(last_mess_recv);
                 if(result <= 0) return NULL;
 
@@ -112,13 +127,13 @@ message_t *read_message(int socket) {
             {
                 uint32_t message_size, seq_num, ack_num;
 
-                result = read(socket, (char *) &message_size, sizeof(uint32_t));
+                result = safe_read(socket, (char *) &message_size, sizeof(uint32_t));
                 if(result <= 0) return NULL;
 
-                result = read(socket, (char *) &seq_num, sizeof(uint32_t));
+                result = safe_read(socket, (char *) &seq_num, sizeof(uint32_t));
                 if(result <= 0) return NULL;
 
-                result = read(socket, (char *) &ack_num, sizeof(uint32_t));
+                result = safe_read(socket, (char *) &ack_num, sizeof(uint32_t));
                 if(result <= 0) return NULL;
 
                 message_size = ntohl(message_size);
@@ -126,7 +141,7 @@ message_t *read_message(int socket) {
                 ack_num = ntohl(ack_num);
 
                 char *payload = calloc(message_size, sizeof(char));
-                result = read(socket, payload, message_size);
+                result = safe_read(socket, payload, message_size);
                 if(result <= 0) return NULL;
 
                 return new_data_message(seq_num, ack_num, message_size, payload);
@@ -136,10 +151,10 @@ message_t *read_message(int socket) {
 			{
                 uint32_t seq_num, ack_num;
 
-                result = read(socket, (char *) &seq_num, sizeof(uint32_t));
+                result = safe_read(socket, (char *) &seq_num, sizeof(uint32_t));
                 if(result <= 0) return NULL;
 
-                result = read(socket, (char *) &ack_num, sizeof(uint32_t));
+                result = safe_read(socket, (char *) &ack_num, sizeof(uint32_t));
                 if(result <= 0) return NULL;
 
                 seq_num = ntohl(seq_num);

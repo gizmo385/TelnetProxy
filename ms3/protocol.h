@@ -5,7 +5,7 @@
 #define HEARTBEAT_FLAG  1
 #define DATA_FLAG       2
 #define CONNECTION_FLAG 3
-#define ACK_FLAG		4 
+#define ACK_FLAG		4
 
 #define IP_SIZE         6
 #define BUFFER_SIZE     1024
@@ -37,6 +37,7 @@ typedef struct message_t {
     message_body_t *body;
 } message_t;
 
+extern int safe_read(int socket, char *buffer, int size);
 extern void send_message(int socket, message_t *message);
 extern message_t *read_message(int socket);
 
